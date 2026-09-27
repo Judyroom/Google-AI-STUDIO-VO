@@ -1,0 +1,7 @@
+{
+  "name": "Resona - AI Text-to-Speech & Voice Cloning Studio",
+  "description": "Professional text-to-speech studio featuring diverse voice styles, expressive vocal controls, and AI voice timbre cloning from reference audio.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+

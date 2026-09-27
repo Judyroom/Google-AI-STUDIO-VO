@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Resona - AI Text-to-Speech & Voice Cloning Studio</title>
+    <meta name="description" content="Professional text-to-speech studio featuring diverse voice styles, expressive vocal controls, and AI voice timbre cloning from reference audio." />
+    <meta property="og:title" content="Resona - AI Text-to-Speech & Voice Cloning Studio" />
+    <meta property="og:description" content="Professional text-to-speech studio featuring diverse voice styles, expressive vocal controls, and AI voice timbre cloning from reference audio." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <script>
+      (function() {
+        try {
+          var saved = localStorage.getItem('resona_theme');
+          var isDark = saved ? saved === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+          if (isDark) {
+            document.documentElement.classList.add('dark');
+          } else {
+            document.documentElement.classList.remove('dark');
+          }
+        } catch(e) {}
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+
