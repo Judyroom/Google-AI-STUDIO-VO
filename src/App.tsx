@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   PrebuiltVoiceName,
   VoiceStylePreset,
-  ClonedVoiceProfile,
+  DesignedVoice,
   SpeechGenerationRecord,
   SampleScript,
   UILanguage,
@@ -10,23 +10,18 @@ import {
   ThemeMode,
 } from './types';
 import {
-  PREBUILT_VOICES,
   VOICE_STYLE_PRESETS,
   VOCAL_BURSTS,
   SAMPLE_SCRIPTS,
-  REFERENCE_SAMPLE_VOICES,
 } from './constants/voices';
 import { I18N } from './constants/i18n';
-import { ENABLE_VOICE_CLONING } from './constants/features';
 import { Navbar } from './components/Navbar';
 import { VoiceSelector } from './components/VoiceSelector';
 import { StyleSelector } from './components/StyleSelector';
 import { AudioPlayerBar } from './components/AudioPlayerBar';
-import { VoiceCloningLab } from './components/VoiceCloningLab';
-import { ClonedVoicesLibrary } from './components/ClonedVoicesLibrary';
+import { VoiceDesignLab } from './components/VoiceDesignLab';
 import { HistoryDrawer } from './components/HistoryDrawer';
 import { Volume2, Sparkles, AlertCircle } from 'lucide-react';
-import { processAudioWithDsp, isDspActive } from './utils/audioDsp';
 
 export default function App() {
   // Theme mode: 'dark' | 'light' (default to dark, but toggleable to light)
@@ -96,60 +91,31 @@ export default function App() {
     setUiLang((prev) => (prev === 'zh' ? 'en' : 'zh'));
   };
 
-  const [activeTab, setActiveTab] = useState<'studio' | 'cloning' | 'library' | 'history'>('studio');
+  const [activeTab, setActiveTab] = useState<'studio' | 'design' | 'history'>('studio');
 
-  // Cloned Voice profiles list
-  const [clonedVoices, setClonedVoices] = useState<ClonedVoiceProfile[]>(() => {
+  // Voices designed with Gemini Voice Design (stored on Google, listed per browser)
+  const [designedVoices, setDesignedVoices] = useState<DesignedVoice[]>(() => {
     try {
-      const saved = localStorage.getItem('resona_cloned_voices');
+      const saved = localStorage.getItem('resona_designed_voices');
       if (saved) return JSON.parse(saved);
     } catch (e) {
       console.warn('Could not read from localStorage', e);
-    }
-    const sample = REFERENCE_SAMPLE_VOICES[0];
-    if (sample.preAnalyzedProfile) {
-      return [
-        {
-          id: 'cloned_sample_eleanor',
-          name: sample.preAnalyzedProfile.name || 'Prof. Eleanor Vance',
-          gender: sample.preAnalyzedProfile.gender || 'Female',
-          ageEstimate: sample.preAnalyzedProfile.ageEstimate || '40s',
-          accent: sample.preAnalyzedProfile.accent || 'British RP',
-          pitchRegister: sample.preAnalyzedProfile.pitchRegister || 'Mezzo-Soprano',
-          fundamentalFreqHz: sample.preAnalyzedProfile.fundamentalFreqHz || 195,
-          timbreDescription: sample.preAnalyzedProfile.timbreDescription || '',
-          cadence: sample.preAnalyzedProfile.cadence || '',
-          timbreScores: sample.preAnalyzedProfile.timbreScores || {
-            warmth: 8,
-            brightness: 7,
-            gravel: 2,
-            breathiness: 4,
-            resonance: 8,
-          },
-          bestBaseVoice: sample.preAnalyzedProfile.bestBaseVoice || 'Kore',
-          cloningStylePrompt: sample.preAnalyzedProfile.cloningStylePrompt || '',
-          summary: sample.preAnalyzedProfile.summary || '',
-          transcription: sample.preAnalyzedProfile.transcription || '',
-          referenceAudioUrl: '',
-          createdAt: new Date().toISOString(),
-        },
-      ];
     }
     return [];
   });
 
   useEffect(() => {
     try {
-      localStorage.setItem('resona_cloned_voices', JSON.stringify(clonedVoices));
+      localStorage.setItem('resona_designed_voices', JSON.stringify(designedVoices));
     } catch (e) {
       console.warn('Could not save to localStorage', e);
     }
-  }, [clonedVoices]);
+  }, [designedVoices]);
 
   // Voice Selection State
   const [selectedVoiceId, setSelectedVoiceId] = useState<string>('Kore');
-  const [isClonedVoiceSelected, setIsClonedVoiceSelected] = useState<boolean>(false);
-  const [currentClonedProfile, setCurrentClonedProfile] = useState<ClonedVoiceProfile | null>(null);
+  const [selectedCustomVoice, setSelectedCustomVoice] = useState<DesignedVoice | null>(null);
+  const isCustomVoiceSelected = selectedCustomVoice !== null;
 
   // Style Selection State
   const [selectedStylePreset, setSelectedStylePreset] = useState<VoiceStylePreset>(VOICE_STYLE_PRESETS[0]);
@@ -163,7 +129,7 @@ export default function App() {
 
   // Text Composer State: default to Chinese or English based on outputLanguage
   const [speechText, setSpeechText] = useState<string>(
-    '欢迎使用 Resona 智能语音工坊。<breath> 您可以输入任意中文或英文段落，自由选择不同的声音角色与演绎风格，并听到流利自然的发音。|yeah| 试试切换不同的音色和演绎风格！'
+    '欢迎使用 Resona 智能语音工坊。<breath> 您可以输入任意中文或英文段落，自由选择不同的声音角色与演绎风格，并听到流利自然的发音。|yeah| 还可以用一段文字描述，设计一个专属音色！'
   );
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -175,14 +141,14 @@ export default function App() {
         '欢迎使用 Resona 智能语音工坊。<breath> 薄雾笼罩着寂静的松林，守灯人擦拭着铜镜，等待着远方归来的旅人。|yeah| 祝您创作愉快！'
       );
       // Auto-suggest Kore for Chinese if not custom
-      if (!isClonedVoiceSelected && (selectedVoiceId === 'Puck' || selectedVoiceId === 'Charon')) {
+      if (!isCustomVoiceSelected && (selectedVoiceId === 'Puck' || selectedVoiceId === 'Charon')) {
         setSelectedVoiceId('Kore');
       }
     } else if (lang === 'en') {
       setSpeechText(
         'Welcome to Resona Studio. <breath> You can type any sentence, choose distinct voice personas, and hear natural speech synthesized in real time. |yeah| Try switching voices and delivery styles!'
       );
-      if (!isClonedVoiceSelected && selectedVoiceId === 'Kore') {
+      if (!isCustomVoiceSelected && selectedVoiceId === 'Kore') {
         setSelectedVoiceId('Puck');
       }
     }
@@ -218,14 +184,12 @@ export default function App() {
 
   const handleSelectPrebuiltVoice = (voiceId: PrebuiltVoiceName) => {
     setSelectedVoiceId(voiceId);
-    setIsClonedVoiceSelected(false);
-    setCurrentClonedProfile(null);
+    setSelectedCustomVoice(null);
   };
 
-  const handleSelectClonedVoice = (clonedVoice: ClonedVoiceProfile) => {
-    setSelectedVoiceId(clonedVoice.id);
-    setIsClonedVoiceSelected(true);
-    setCurrentClonedProfile(clonedVoice);
+  const handleSelectDesignedVoice = (voice: DesignedVoice) => {
+    setSelectedVoiceId(voice.id);
+    setSelectedCustomVoice(voice);
   };
 
   const handleInsertVocalBurst = (tag: string) => {
@@ -278,77 +242,41 @@ export default function App() {
     setGenerationError(null);
 
     try {
-      let finalAudioUrl = '';
-      let durationSec = 0;
-      let voiceDisplay = '';
-      let styleDisplay = '';
+      const effectiveStylePrompt = isCustomStyleActive
+        ? customStylePrompt
+        : selectedStylePreset.stylePrompt;
 
-      if (isClonedVoiceSelected && currentClonedProfile) {
-        voiceDisplay = currentClonedProfile.name;
-        styleDisplay = `Cloned Timbre (${currentClonedProfile.bestBaseVoice})`;
+      const voiceDisplay = selectedCustomVoice ? selectedCustomVoice.name : selectedVoiceId;
+      const styleDisplay = isCustomStyleActive
+        ? (uiLang === 'zh' ? '自定义风格' : 'Custom Style')
+        : (uiLang === 'zh' ? selectedStylePreset.nameZh : selectedStylePreset.name);
 
-        const res = await fetch('/api/clone/synthesize', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            text: speechText,
-            clonedProfile: currentClonedProfile,
-            outputLanguage,
-          }),
-        });
+      const res = await fetch('/api/tts/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: speechText,
+          voiceName: selectedCustomVoice ? undefined : selectedVoiceId,
+          customVoiceId: selectedCustomVoice?.id,
+          stylePrompt: effectiveStylePrompt,
+          outputLanguage,
+          model: ttsModel,
+        }),
+      });
 
-        const data = await res.json();
-        if (!res.ok || !data.success) {
-          throw new Error(data.error || 'Failed to synthesize speech in cloned voice.');
-        }
-
-        let audioUrl = data.audioUrl;
-        if (currentClonedProfile.dspConfig && isDspActive(currentClonedProfile.dspConfig)) {
-          try {
-            audioUrl = await processAudioWithDsp(audioUrl, currentClonedProfile.dspConfig);
-          } catch (dspErr) {
-            console.warn('DSP processing skipped, using synthesized audio directly:', dspErr);
-          }
-        }
-
-        finalAudioUrl = audioUrl;
-        durationSec = data.durationSec || 0;
-      } else {
-        const effectiveStylePrompt = isCustomStyleActive
-          ? customStylePrompt
-          : selectedStylePreset.stylePrompt;
-
-        voiceDisplay = selectedVoiceId;
-        styleDisplay = isCustomStyleActive
-          ? (uiLang === 'zh' ? '自定义风格' : 'Custom Style')
-          : (uiLang === 'zh' ? selectedStylePreset.nameZh : selectedStylePreset.name);
-
-        const res = await fetch('/api/tts/generate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            text: speechText,
-            voiceName: selectedVoiceId,
-            stylePrompt: effectiveStylePrompt,
-            outputLanguage,
-            model: ttsModel,
-          }),
-        });
-
-        const data = await res.json();
-        if (!res.ok || !data.success) {
-          throw new Error(data.error || 'Failed to generate speech.');
-        }
-
-        finalAudioUrl = data.audioUrl;
-        durationSec = data.durationSec || 0;
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Failed to generate speech.');
       }
+
+      const finalAudioUrl: string = data.audioUrl;
+      const durationSec: number = data.durationSec || 0;
 
       const langLabel = outputLanguage === 'zh' ? '中文普通话' : outputLanguage === 'en' ? '英语' : '自动语言';
 
       setCurrentAudioUrl(finalAudioUrl);
       setCurrentAudioMetadata({
-        title: `${voiceDisplay} · ${isClonedVoiceSelected ? (uiLang === 'zh' ? '克隆音色' : 'Cloned Voice') : styleDisplay}`,
+        title: `${voiceDisplay} · ${styleDisplay}`,
         subtitle: `${langLabel} · ~${durationSec}s · ${speechText.length} ${t.charsLabel}`,
       });
 
@@ -358,12 +286,12 @@ export default function App() {
         audioUrl: finalAudioUrl,
         durationSec,
         voiceName: voiceDisplay,
-        isClonedVoice: isClonedVoiceSelected,
-        clonedVoiceId: currentClonedProfile?.id,
-        baseVoice: isClonedVoiceSelected ? currentClonedProfile?.bestBaseVoice : selectedVoiceId,
+        isCustomVoice: isCustomVoiceSelected,
+        customVoiceId: selectedCustomVoice?.id,
+        baseVoice: selectedCustomVoice ? undefined : selectedVoiceId,
         outputLanguage,
-        stylePrompt: isClonedVoiceSelected ? 'Cloned Voice' : (isCustomStyleActive ? 'Custom' : selectedStylePreset.name),
-        model: isClonedVoiceSelected ? 'gemini-3.8-flash-tts' : ttsModel,
+        stylePrompt: isCustomStyleActive ? 'Custom' : selectedStylePreset.name,
+        model: data.model || ttsModel,
         createdAt: new Date().toISOString(),
       };
 
@@ -376,21 +304,23 @@ export default function App() {
     }
   };
 
-  const handleSaveClonedVoice = (newProfile: ClonedVoiceProfile) => {
-    setClonedVoices((prev) => {
-      const filtered = prev.filter((p) => p.id !== newProfile.id);
-      return [newProfile, ...filtered];
-    });
+  const handleVoiceDesigned = (voice: DesignedVoice) => {
+    setDesignedVoices((prev) => [voice, ...prev.filter((v) => v.id !== voice.id)]);
   };
 
-  const handleUseClonedVoiceInStudio = (voice: ClonedVoiceProfile) => {
-    handleSelectClonedVoice(voice);
+  const handleUseDesignedVoice = (voice: DesignedVoice) => {
+    handleSelectDesignedVoice(voice);
     setActiveTab('studio');
   };
 
-  const handleDeleteClonedVoice = (voiceId: string) => {
-    setClonedVoices((prev) => prev.filter((v) => v.id !== voiceId));
-    if (selectedVoiceId === voiceId) {
+  const handleDeleteDesignedVoice = async (voice: DesignedVoice) => {
+    const res = await fetch(`/api/voices/${encodeURIComponent(voice.id)}`, { method: 'DELETE' });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.success) {
+      throw new Error(data.error || 'Failed to delete voice.');
+    }
+    setDesignedVoices((prev) => prev.filter((v) => v.id !== voice.id));
+    if (selectedCustomVoice?.id === voice.id) {
       handleSelectPrebuiltVoice('Kore');
     }
   };
@@ -404,8 +334,7 @@ export default function App() {
   const cardClass =
     'rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50 p-5 space-y-4 shadow-sm';
   const cardTitleClass = 'text-sm font-semibold text-zinc-900 dark:text-zinc-100';
-  const activeVoiceName =
-    isClonedVoiceSelected && currentClonedProfile ? currentClonedProfile.name : selectedVoiceId;
+  const activeVoiceName = selectedCustomVoice ? selectedCustomVoice.name : selectedVoiceId;
   const outputLangShort =
     outputLanguage === 'zh'
       ? (uiLang === 'zh' ? '中文' : 'Chinese')
@@ -419,7 +348,7 @@ export default function App() {
       <Navbar
         activeTab={activeTab}
         onTabChange={setActiveTab}
-        clonedCount={clonedVoices.length}
+        designedCount={designedVoices.length}
         historyCount={history.length}
         uiLang={uiLang}
         onToggleUiLang={toggleUiLang}
@@ -567,32 +496,31 @@ export default function App() {
               <section className={cardClass}>
                 <VoiceSelector
                   selectedVoiceId={selectedVoiceId}
-                  isClonedVoiceSelected={isClonedVoiceSelected}
-                  clonedVoices={ENABLE_VOICE_CLONING ? clonedVoices : []}
+                  isCustomVoiceSelected={isCustomVoiceSelected}
+                  designedVoices={designedVoices}
                   onSelectPrebuiltVoice={handleSelectPrebuiltVoice}
-                  onSelectClonedVoice={handleSelectClonedVoice}
+                  onSelectDesignedVoice={handleSelectDesignedVoice}
+                  onGoToDesign={() => setActiveTab('design')}
                   uiLang={uiLang}
                   outputLanguage={outputLanguage}
                 />
               </section>
 
               {/* Delivery Style & Tone Selector */}
-              {!isClonedVoiceSelected && (
-                <section className={cardClass}>
-                  <StyleSelector
-                    selectedStyleId={selectedStylePreset.id}
-                    customStylePrompt={customStylePrompt}
-                    isCustomActive={isCustomStyleActive}
-                    onSelectPreset={(preset) => {
-                      setSelectedStylePreset(preset);
-                      setIsCustomStyleActive(false);
-                    }}
-                    onCustomPromptChange={setCustomStylePrompt}
-                    onToggleCustom={() => setIsCustomStyleActive(!isCustomStyleActive)}
-                    uiLang={uiLang}
-                  />
-                </section>
-              )}
+              <section className={cardClass}>
+                <StyleSelector
+                  selectedStyleId={selectedStylePreset.id}
+                  customStylePrompt={customStylePrompt}
+                  isCustomActive={isCustomStyleActive}
+                  onSelectPreset={(preset) => {
+                    setSelectedStylePreset(preset);
+                    setIsCustomStyleActive(false);
+                  }}
+                  onCustomPromptChange={setCustomStylePrompt}
+                  onToggleCustom={() => setIsCustomStyleActive(!isCustomStyleActive)}
+                  uiLang={uiLang}
+                />
+              </section>
 
               {/* Synthesis Engine Settings */}
               <section className={cardClass}>
@@ -633,28 +561,18 @@ export default function App() {
           </div>
         )}
 
-        {/* Tab 2: Voice Cloning Lab */}
-        {ENABLE_VOICE_CLONING && activeTab === 'cloning' && (
-          <VoiceCloningLab
-            clonedVoices={clonedVoices}
-            onSaveClonedVoice={handleSaveClonedVoice}
-            onSelectForStudio={handleUseClonedVoiceInStudio}
+        {/* Tab 2: Voice Design Lab */}
+        {activeTab === 'design' && (
+          <VoiceDesignLab
+            designedVoices={designedVoices}
+            onVoiceCreated={handleVoiceDesigned}
+            onDeleteVoice={handleDeleteDesignedVoice}
+            onUseVoice={handleUseDesignedVoice}
             uiLang={uiLang}
           />
         )}
 
-        {/* Tab 3: Cloned Voice Library */}
-        {ENABLE_VOICE_CLONING && activeTab === 'library' && (
-          <ClonedVoicesLibrary
-            clonedVoices={clonedVoices}
-            onSelectVoice={handleUseClonedVoiceInStudio}
-            onDeleteVoice={handleDeleteClonedVoice}
-            onGoToCloningLab={() => setActiveTab('cloning')}
-            uiLang={uiLang}
-          />
-        )}
-
-        {/* Tab 4: History Drawer */}
+        {/* Tab 3: History Drawer */}
         {activeTab === 'history' && (
           <div className="max-w-4xl mx-auto">
             <HistoryDrawer
@@ -685,7 +603,7 @@ export default function App() {
           <div className="flex items-center gap-2">
             <span className="font-semibold text-zinc-700 dark:text-zinc-400">Resona Audio Studio</span>
             <span>·</span>
-            <span>{uiLang === 'zh' ? '基于 Gemini 神经网络语音与声学分析' : 'Powered by Gemini Multimodal & Neural Speech Synthesis'}</span>
+            <span>{uiLang === 'zh' ? '基于 Gemini 语音合成与 Voice Design' : 'Powered by Gemini TTS & Voice Design'}</span>
           </div>
           <div>
             <span>16-bit 24kHz Lossless Audio Streaming</span>

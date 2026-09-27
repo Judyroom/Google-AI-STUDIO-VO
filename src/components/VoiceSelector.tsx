@@ -1,25 +1,27 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { PREBUILT_VOICES } from '../constants/voices';
-import { PrebuiltVoiceName, ClonedVoiceProfile, UILanguage, OutputLanguage } from '../types';
+import { PrebuiltVoiceName, DesignedVoice, UILanguage, OutputLanguage } from '../types';
 import { I18N } from '../constants/i18n';
-import { Dna, Play, Pause, Loader2, CheckCircle2 } from 'lucide-react';
+import { Wand2, Play, Pause, Loader2, CheckCircle2, Plus } from 'lucide-react';
 
 interface VoiceSelectorProps {
   selectedVoiceId: string;
-  isClonedVoiceSelected: boolean;
-  clonedVoices: ClonedVoiceProfile[];
+  isCustomVoiceSelected: boolean;
+  designedVoices: DesignedVoice[];
   onSelectPrebuiltVoice: (voiceId: PrebuiltVoiceName) => void;
-  onSelectClonedVoice: (clonedVoice: ClonedVoiceProfile) => void;
+  onSelectDesignedVoice: (voice: DesignedVoice) => void;
+  onGoToDesign: () => void;
   uiLang: UILanguage;
   outputLanguage: OutputLanguage;
 }
 
 export const VoiceSelector: React.FC<VoiceSelectorProps> = ({
   selectedVoiceId,
-  isClonedVoiceSelected,
-  clonedVoices,
+  isCustomVoiceSelected,
+  designedVoices,
   onSelectPrebuiltVoice,
-  onSelectClonedVoice,
+  onSelectDesignedVoice,
+  onGoToDesign,
   uiLang,
   outputLanguage,
 }) => {
@@ -98,34 +100,21 @@ export const VoiceSelector: React.FC<VoiceSelectorProps> = ({
     }
   };
 
-  const handleToggleClonedPreview = (e: React.MouseEvent, clonedVoice: ClonedVoiceProfile) => {
+  const handleToggleDesignedPreview = (e: React.MouseEvent, voice: DesignedVoice) => {
     e.stopPropagation();
-
-    if (playingVoiceId === clonedVoice.id) {
-      if (previewAudioRef.current) {
-        previewAudioRef.current.pause();
-      }
+    if (playingVoiceId === voice.id) {
+      previewAudioRef.current?.pause();
       setPlayingVoiceId(null);
       return;
     }
-
-    if (!clonedVoice.referenceAudioUrl) {
-      return;
-    }
-
+    if (!voice.previewAudioUrl) return;
     if (!previewAudioRef.current) {
       previewAudioRef.current = new Audio();
     }
-
     const audio = previewAudioRef.current;
-    audio.src = clonedVoice.referenceAudioUrl;
-    audio.onended = () => {
-      setPlayingVoiceId(null);
-    };
-
-    audio.play().then(() => {
-      setPlayingVoiceId(clonedVoice.id);
-    }).catch(console.error);
+    audio.src = voice.previewAudioUrl;
+    audio.onended = () => setPlayingVoiceId(null);
+    audio.play().then(() => setPlayingVoiceId(voice.id)).catch(console.error);
   };
 
   const filteredVoices = PREBUILT_VOICES.filter((voice) => {
@@ -162,80 +151,83 @@ export const VoiceSelector: React.FC<VoiceSelectorProps> = ({
         </div>
       </div>
 
-      {/* Cloned Voices section if any exist */}
-      {clonedVoices.length > 0 && (
-        <div className="mb-4">
-          <div className="flex items-center gap-1.5 text-xs font-semibold text-cyan-600 dark:text-cyan-400 mb-2">
-            <Dna className="w-3.5 h-3.5" />
-            <span>{uiLang === 'zh' ? '已提取保存的克隆音色' : 'Your Cloned Voice Profiles'}</span>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-            {clonedVoices.map((cloned) => {
-              const isSelected = isClonedVoiceSelected && selectedVoiceId === cloned.id;
-              const isPlayingThisCloned = playingVoiceId === cloned.id;
+      {/* Designed Voices */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <span className="flex items-center gap-1.5 text-xs font-medium text-violet-600 dark:text-violet-400">
+            <Wand2 className="w-3.5 h-3.5" />
+            {uiLang === 'zh' ? '我设计的音色' : 'My designed voices'}
+          </span>
+          <button
+            type="button"
+            onClick={onGoToDesign}
+            className="flex items-center gap-1 text-xs text-zinc-500 hover:text-violet-600 dark:hover:text-violet-300 transition-colors"
+          >
+            <Plus className="w-3 h-3" />
+            {uiLang === 'zh' ? '设计新音色' : 'Design new'}
+          </button>
+        </div>
 
+        {designedVoices.length > 0 && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            {designedVoices.map((voice) => {
+              const isSelected = isCustomVoiceSelected && selectedVoiceId === voice.id;
+              const isPlayingThis = playingVoiceId === voice.id;
               return (
                 <div
-                  key={cloned.id}
-                  onClick={() => onSelectClonedVoice(cloned)}
-                  className={`relative text-left p-3 rounded-lg border transition-all cursor-pointer ${
+                  key={voice.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => onSelectDesignedVoice(voice)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      onSelectDesignedVoice(voice);
+                    }
+                  }}
+                  title={voice.prompt}
+                  className={`p-3.5 rounded-xl border transition-all cursor-pointer flex flex-col gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 ${
                     isSelected
-                      ? 'bg-cyan-50 dark:bg-cyan-950/40 border-cyan-500 shadow-md shadow-cyan-950/20'
+                      ? 'bg-violet-50/70 dark:bg-violet-950/30 border-violet-500 ring-1 ring-violet-500'
                       : 'bg-white dark:bg-zinc-900/60 border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700'
                   }`}
                 >
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{cloned.name}</span>
-                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-cyan-100 dark:bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 font-mono">
-                          CLONED
-                        </span>
-                      </div>
-                      <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-1 line-clamp-1">
-                        {cloned.timbreDescription || cloned.summary}
-                      </p>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      {isSelected ? (
+                        <CheckCircle2 className="w-4 h-4 text-violet-600 dark:text-violet-400 shrink-0" />
+                      ) : (
+                        <span className="w-4 h-4 rounded-full border border-zinc-300 dark:border-zinc-600 shrink-0" />
+                      )}
+                      <span className="font-semibold text-sm text-zinc-900 dark:text-zinc-100 truncate">{voice.name}</span>
                     </div>
-
-                    {/* Preview Button for Cloned Voice */}
-                    {cloned.referenceAudioUrl && (
+                    {voice.previewAudioUrl && (
                       <button
                         type="button"
-                        onClick={(e) => handleToggleClonedPreview(e, cloned)}
-                        className={`p-1.5 rounded-full transition-colors shrink-0 ${
-                          isPlayingThisCloned
-                            ? 'bg-cyan-500 text-zinc-950'
-                            : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700'
+                        onClick={(e) => handleToggleDesignedPreview(e, voice)}
+                        className={`shrink-0 flex items-center gap-1 h-7 px-2.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
+                          isPlayingThis
+                            ? 'bg-violet-600 text-white'
+                            : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 hover:bg-violet-100 dark:hover:bg-violet-500/20'
                         }`}
-                        title={isPlayingThisCloned ? '停止播放' : t.previewClonedSample}
                       >
-                        {isPlayingThisCloned ? (
-                          <Pause className="w-3.5 h-3.5 fill-current" />
-                        ) : (
-                          <Play className="w-3.5 h-3.5 fill-current ml-0.5" />
-                        )}
+                        {isPlayingThis ? <Pause className="w-3 h-3 fill-current" /> : <Play className="w-3 h-3 fill-current" />}
+                        <span>{isPlayingThis ? t.previewPlayingBtn : t.previewVoiceBtn}</span>
                       </button>
                     )}
                   </div>
-
-                  <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[11px] text-zinc-500">
-                    <span>{cloned.gender}</span>
-                    <span>·</span>
-                    <span>{cloned.pitchRegister}</span>
-                    <span>·</span>
-                    <span>Base: {cloned.bestBaseVoice}</span>
-                  </div>
+                  <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed line-clamp-2">{voice.prompt}</p>
                 </div>
               );
             })}
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Prebuilt Standard Neural Voices */}
       <div className="space-y-2.5">
         {outputLanguage !== 'auto' && (
-          <p className="text-xs text-zinc-500 dark:text-zinc-400">
+          <p className="pt-2 text-xs text-zinc-500 dark:text-zinc-400">
             {outputLanguage === 'zh'
               ? '中文朗读推荐 Kore（温润）或 Zephyr（知性）'
               : 'For English, try Puck (energetic), Fenrir (epic) or Charon (gritty)'}
@@ -244,7 +236,7 @@ export const VoiceSelector: React.FC<VoiceSelectorProps> = ({
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
           {filteredVoices.map((voice) => {
-            const isSelected = !isClonedVoiceSelected && selectedVoiceId === voice.id;
+            const isSelected = !isCustomVoiceSelected && selectedVoiceId === voice.id;
             const isPlayingThis = playingVoiceId === voice.id;
             const isLoadingThis = loadingVoiceId === voice.id;
             const genderLabel =

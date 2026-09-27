@@ -69,9 +69,9 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
                 <div className="space-y-1 flex-1">
                   <div className="flex flex-wrap items-center gap-2 text-xs">
                     <span className="font-semibold text-zinc-900 dark:text-zinc-200">{item.voiceName}</span>
-                    {item.isClonedVoice && (
-                      <span className="text-[10px] px-1.5 py-0.2 rounded bg-cyan-100 dark:bg-cyan-500/20 text-cyan-800 dark:text-cyan-300 font-mono">
-                        CLONED
+                    {item.isCustomVoice && (
+                      <span className="text-[10px] px-1.5 py-0.2 rounded bg-violet-100 dark:bg-violet-500/20 text-violet-800 dark:text-violet-300">
+                        {uiLang === 'zh' ? '设计音色' : 'Designed'}
                       </span>
                     )}
                     {/* Language Badge */}

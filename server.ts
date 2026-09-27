@@ -2,7 +2,7 @@ import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
-import { GoogleGenAI, Type } from '@google/genai';
+import { GoogleGenAI } from '@google/genai';
 import { createServer as createViteServer } from 'vite';
 
 dotenv.config();
@@ -95,6 +95,14 @@ function formatAudioResponse(base64Data: string, sampleRate: number = 24000): { 
 // API Endpoints
 // -------------------------------------------------------------
 
+app.use('/api', (req, res, next) => {
+  if (!process.env.GEMINI_API_KEY) {
+    res.status(500).json({ error: 'GEMINI_API_KEY is not configured on the server.' });
+    return;
+  }
+  next();
+});
+
 /**
  * POST /api/tts/generate
  * Standard text-to-speech with selectable voice styles and prebuilt voices.
@@ -107,6 +115,7 @@ app.post('/api/tts/generate', async (req, res) => {
       stylePrompt,
       outputLanguage = 'auto',
       model = 'gemini-3.8-flash-lite-tts',
+      customVoiceId,
     } = req.body;
 
     if (!text || typeof text !== 'string' || !text.trim()) {
@@ -116,6 +125,10 @@ app.post('/api/tts/generate', async (req, res) => {
 
     const validVoiceNames = ['Puck', 'Charon', 'Kore', 'Fenrir', 'Zephyr'];
     const chosenVoice = validVoiceNames.includes(voiceName) ? voiceName : 'Kore';
+    const useCustomVoice = typeof customVoiceId === 'string' && CUSTOM_VOICE_ID.test(customVoiceId);
+    const voiceConfig = useCustomVoice
+      ? { voice: customVoiceId }
+      : { prebuiltVoiceConfig: { voiceName: chosenVoice } };
     const chosenModel = model === 'gemini-3.8-flash-tts' ? 'gemini-3.8-flash-tts' : 'gemini-3.8-flash-lite-tts';
 
     let combinedStyle = (stylePrompt && typeof stylePrompt === 'string') ? stylePrompt.trim() : '';
@@ -158,11 +171,7 @@ app.post('/api/tts/generate', async (req, res) => {
           ],
           config: {
             responseModalities: ['AUDIO'],
-            speechConfig: {
-              voiceConfig: {
-                prebuiltVoiceConfig: { voiceName: chosenVoice },
-              },
-            },
+            speechConfig: { voiceConfig },
           },
         });
 
@@ -181,8 +190,13 @@ app.post('/api/tts/generate', async (req, res) => {
       }
     }
 
-    const candidate = response.candidates?.[0];
+    const candidate = response?.candidates?.[0];
     const audioPart = candidate?.content?.parts?.find((p: any) => p.inlineData?.data);
+
+    if (!response) {
+      res.status(429).json({ error: 'Gemini TTS quota is busy on both models. Please wait a minute and try again.' });
+      return;
+    }
 
     if (!audioPart || !audioPart.inlineData?.data) {
       res.status(500).json({
@@ -198,8 +212,8 @@ app.post('/api/tts/generate', async (req, res) => {
       success: true,
       audioUrl,
       durationSec,
-      voiceName: chosenVoice,
-      model: chosenModel,
+      voiceName: useCustomVoice ? customVoiceId : chosenVoice,
+      model: actualModelUsed,
       outputLanguage: outputLanguage || 'auto',
       stylePrompt: stylePrompt || 'Natural',
       charCount: text.length,
@@ -208,7 +222,7 @@ app.post('/api/tts/generate', async (req, res) => {
   } catch (error: any) {
     console.error('Error in /api/tts/generate:', error);
     res.status(500).json({
-      error: error?.message || 'Failed to generate speech. Please check your text and try again.',
+      error: googleErrorMessage(error) || 'Failed to generate speech. Please check your text and try again.',
     });
   }
 });
@@ -323,485 +337,142 @@ app.post('/api/tts/preview', async (req, res) => {
   }
 });
 
+const CUSTOM_VOICE_ID = /^voice_[A-Za-z0-9_-]{4,}$/;
+
 /**
- * Generate synthetic voice waveform PCM WAV when Gemini API quota is in cooldown.
+ * Pull the human-readable message out of a Gemini SDK error, whose message
+ * embeds the raw JSON response body.
  */
-function generateFallbackPcmWav(
-  text: string,
-  isFemale: boolean,
-  durationSec: number = 3.2
-): { audioUrl: string; durationSec: number } {
-  const sampleRate = 24000;
-  const numSamples = Math.floor(sampleRate * durationSec);
-  const pcmBuffer = Buffer.alloc(numSamples * 2);
-  const baseFreq = isFemale ? 220 : 120;
-  const harmonics = isFemale ? [1.0, 0.7, 0.45, 0.3, 0.15] : [1.0, 0.85, 0.6, 0.4, 0.2];
+function googleErrorMessage(err: any): string {
+  const raw = String(err?.message || err || '');
+  const match = raw.match(/"message":\s*"((?:[^"\\]|\\.)*)"/);
+  return match ? match[1] : raw;
+}
 
-  for (let i = 0; i < numSamples; i++) {
-    const t = i / sampleRate;
-    // speech syllables envelope (about 3.6 syllables per second)
-    const envelope = Math.sin(t * Math.PI * 3.6) * 0.4 + 0.6;
-    const fade = Math.min(1, Math.min(t / 0.08, (durationSec - t) / 0.15));
-    let sample = 0;
-    harmonics.forEach((amp, h) => {
-      sample += Math.sin(2 * Math.PI * baseFreq * (h + 1) * t) * amp;
-    });
-    sample = sample * envelope * fade * 0.35;
-    const intSample = Math.max(-32768, Math.min(32767, Math.floor(sample * 32767)));
-    pcmBuffer.writeInt16LE(intSample, i * 2);
-  }
-
-  const wavBuffer = pcmToWav(pcmBuffer, sampleRate, 1, 16);
-  return {
-    audioUrl: `data:audio/wav;base64,${wavBuffer.toString('base64')}`,
-    durationSec,
-  };
+function isQuotaError(err: any): boolean {
+  const msg = String(err?.message || '');
+  return msg.includes('429') || msg.includes('RESOURCE_EXHAUSTED') || msg.includes('quota');
 }
 
 /**
- * POST /api/clone/analyze
- * Analyzes an uploaded or recorded reference audio file to extract its voice timbre,
- * pitch, cadence, formant properties, and map it to an acoustic synthesis prompt.
+ * Turn the sample_audio payload returned by voice creation into a playable WAV data URL.
  */
-app.post('/api/clone/analyze', async (req, res) => {
+function sampleAudioToUrl(sample?: { data?: string; mime_type?: string }): string | undefined {
+  if (!sample?.data) return undefined;
+  const mime = (sample.mime_type || '').toLowerCase();
+  if (mime.includes('wav') || mime.includes('pcm') || mime.includes('l16') || !mime) {
+    return formatAudioResponse(sample.data, 24000).audioUrl;
+  }
+  return `data:${mime};base64,${sample.data}`;
+}
+
+const DESIGN_PREVIEW_TEXT: Record<'zh' | 'en', string> = {
+  zh: '你好，这是根据你的描述设计出来的专属音色。希望你喜欢这个声音。',
+  en: 'Hello, this is the voice you designed from your description. I hope you like how it sounds.',
+};
+
+/**
+ * POST /api/voices/design
+ * Creates a stored Gemini custom voice from a natural-language description
+ * (Voice Design, type "prompted") and returns it with a short audio preview.
+ */
+app.post('/api/voices/design', async (req, res) => {
+  const { prompt, name, languageCode = 'zh-CN', gender } = req.body || {};
+
+  if (!prompt || typeof prompt !== 'string' || prompt.trim().length < 5) {
+    res.status(400).json({ error: 'Please describe the voice in at least a few words.' });
+    return;
+  }
+  const displayName = (typeof name === 'string' && name.trim()) ? name.trim().slice(0, 60) : 'My Voice';
+  const lang = languageCode === 'en-US' ? 'en-US' : 'zh-CN';
+
+  let voice: any;
   try {
-    const {
-      audioBase64,
-      mimeType = 'audio/wav',
-      sampleName,
-      genderHint, // 'Female' | 'Male' | 'Auto'
-      detectedGender, // 'Female' | 'Male' from browser acoustic pitch analysis
-      detectedPitch, // fundamental freq in Hz from browser
-    } = req.body;
-
-    if (!audioBase64 || typeof audioBase64 !== 'string') {
-      res.status(400).json({ error: 'Audio data is required for voice cloning analysis.' });
-      return;
-    }
-
-    // Clean base64 if data URL was sent
-    const cleanBase64 = audioBase64.replace(/^data:[^;]+;base64,/, '');
-
-    // Normalize audio mimeType for Gemini API
-    let safeMime = 'audio/wav';
-    if (mimeType.includes('webm')) safeMime = 'audio/webm';
-    else if (mimeType.includes('mp4') || mimeType.includes('m4a')) safeMime = 'audio/mp4';
-    else if (mimeType.includes('ogg')) safeMime = 'audio/ogg';
-    else if (mimeType.includes('mp3') || mimeType.includes('mpeg')) safeMime = 'audio/mp3';
-
-    // Prioritize client-detected acoustics: if detected pitch is >= 160Hz or detectedGender is Female, treat as Female
-    const isClientDetectedFemale =
-      detectedGender === 'Female' ||
-      (typeof detectedPitch === 'number' && detectedPitch >= 160) ||
-      genderHint === 'Female' ||
-      (sampleName && /female|woman|girl|lady|女|kore|sora|emma|sarah/i.test(sampleName));
-
-    const effectiveGender = genderHint === 'Male' ? 'Male' : (isClientDetectedFemale ? 'Female' : 'Female');
-
-    // Build specific prompt to accurately extract timbre
-    const genderInstruction = effectiveGender === 'Female'
-      ? 'CRITICAL REQUIREMENT: This reference audio is a FEMALE speaker. You MUST output "gender": "Female", pitch register as Alto, Mezzo-Soprano or Soprano, and bestBaseVoice as "Kore" or "Zephyr".'
-      : 'CRITICAL REQUIREMENT: This reference audio is a MALE speaker. You MUST output "gender": "Male", pitch register as Baritone or Tenor, and bestBaseVoice as "Fenrir", "Charon", or "Puck".';
-
-    const analysisPrompt = `You are a world-leading speech acoustician, voice director, and neural TTS sound designer.
-Analyze this audio recording of a person speaking to extract their exact voice timbre, acoustic texture, pitch range, and vocal mannerisms.
-${genderInstruction}
-
-Your goal is to build an acoustic profile that allows a voice design TTS system to clone and imitate this voice with precision.
-
-Produce a detailed analysis in JSON following this structure:
-{
-  "name": "Concise evocative name for this voice (e.g. '温润轻柔女声', '清雅知性女声', '沉稳磁性男声')",
-  "gender": "Female | Male",
-  "ageEstimate": "e.g. 20s, 30s-40s",
-  "accent": "e.g. Standard Mandarin, Neutral",
-  "pitchRegister": "Mezzo-Soprano | Soprano | Alto | Baritone | Tenor | Bass",
-  "fundamentalFreqHz": estimated fundamental frequency number in Hz (${effectiveGender === 'Female' ? 'e.g. 220' : 'e.g. 120'}),
-  "timbreDescription": "Rich description of the vocal texture: harmonic warmth, breathiness, resonance",
-  "cadence": "Speaking pace, rhythmic flow, sentence inflection patterns, pauses",
-  "timbreScores": {
-    "warmth": 1-10 (integer rating),
-    "brightness": 1-10 (integer rating),
-    "gravel": 1-10 (integer rating),
-    "breathiness": 1-10 (integer rating),
-    "resonance": 1-10 (integer rating)
-  },
-  "bestBaseVoice": "Must be 'Kore' or 'Zephyr' for Female; 'Fenrir', 'Puck' or 'Charon' for Male.",
-  "cloningStylePrompt": "An instruction prompt for Gemini TTS speechMetadata style field to replicate this voice timbre.",
-  "recommendedTuning": {
-    "pitchShiftSemitones": number between -4 and 4,
-    "speedMultiplier": number between 0.8 and 1.25,
-    "eqBassBoostDb": number between -4 and 6,
-    "eqTrebleBoostDb": number between -4 and 6
-  },
-  "transcription": "Transcription of the reference audio sample",
-  "summary": "Summary of this voice profile"
-}`;
-
-    let responseText = '';
-    try {
-      const response = await ai.models.generateContent({
-        model: 'gemini-3.8-flash',
-        contents: [
-          {
-            role: 'user',
-            parts: [
-              {
-                inlineData: {
-                  data: cleanBase64,
-                  mimeType: safeMime,
-                },
-              },
-              {
-                text: analysisPrompt,
-              },
-            ],
-          },
-        ],
-        config: {
-          responseMimeType: 'application/json',
-        },
-      });
-      responseText = response.text || '';
-    } catch (apiErr: any) {
-      console.warn('Gemini 3.8 flash analysis experienced high demand/error, generating acoustic timbre profile:', apiErr.message);
-    }
-
-    let profileData: any = null;
-    if (responseText) {
-      try {
-        profileData = JSON.parse(responseText);
-      } catch (e) {
-        try {
-          const cleaned = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
-          profileData = JSON.parse(cleaned);
-        } catch (e2) {
-          console.warn('Failed to parse model JSON output', e2);
-        }
-      }
-    }
-
-    const isFemale = effectiveGender === 'Female' || (
-      genderHint !== 'Male' && (
-        isClientDetectedFemale ||
-        (profileData?.gender && /female|woman|girl|女/i.test(profileData.gender)) ||
-        (profileData?.pitchRegister && /soprano|alto|mezzo/i.test(profileData.pitchRegister)) ||
-        ['Kore', 'Zephyr'].includes(profileData?.bestBaseVoice) ||
-        (profileData?.fundamentalFreqHz && profileData.fundamentalFreqHz >= 160)
-      )
-    );
-
-    // If API was unavailable or JSON failed, provide high quality estimated acoustic timbre profile
-    if (!profileData || typeof profileData !== 'object') {
-      const defaultPitch = isFemale ? (detectedPitch || 220) : (detectedPitch || 120);
-      profileData = {
-        name: sampleName ? `${sampleName} (定制音色)` : (isFemale ? '温润清雅女声' : '沉稳磁性男声'),
-        gender: isFemale ? 'Female' : 'Male',
-        ageEstimate: '20s-30s',
-        accent: 'Standard Neutral',
-        pitchRegister: isFemale ? 'Mezzo-Soprano' : 'Baritone',
-        fundamentalFreqHz: defaultPitch,
-        timbreDescription: isFemale
-          ? '清丽温润的女声音色，带有柔和的胸腔共鸣，高频清晰自然，咬字圆润舒缓。'
-          : '深沉醇厚的男声音色，低频胸腔共振充沛，语调沉稳自然，富有亲和力。',
-        cadence: '自然口语节奏，语调起伏流畅，呼吸节奏适中。',
-        timbreScores: {
-          warmth: 8,
-          brightness: isFemale ? 8 : 6,
-          gravel: isFemale ? 1 : 4,
-          breathiness: 4,
-          resonance: 8,
-        },
-        bestBaseVoice: isFemale ? 'Kore' : 'Fenrir',
-        cloningStylePrompt: isFemale
-          ? 'A natural, warm, melodious female speaking voice with smooth clear diction and gentle chest resonance.'
-          : 'A deep, resonant male speaking voice with smoky chest presence, authoritative warmth, and measured cadence.',
-        transcription: '参考音频样本已成功提取声学特征。',
-        summary: `已精准建立${isFemale ? '温润女声' : '沉稳男声'}声学音色模型，自动关联最佳底模。`,
-      };
-    }
-
-    // STRICT GUARANTEE: Never map a female speaker to a male base voice!
-    if (isFemale) {
-      profileData.gender = 'Female';
-      if (!['Kore', 'Zephyr'].includes(profileData.bestBaseVoice)) {
-        profileData.bestBaseVoice = 'Kore';
-      }
-      if (!profileData.pitchRegister || /baritone|bass/i.test(profileData.pitchRegister)) {
-        profileData.pitchRegister = 'Mezzo-Soprano';
-      }
-      if (!profileData.fundamentalFreqHz || profileData.fundamentalFreqHz < 160) {
-        profileData.fundamentalFreqHz = detectedPitch || 220;
-      }
-      if (!profileData.cloningStylePrompt || /male|baritone|bass|he\b|his\b/i.test(profileData.cloningStylePrompt)) {
-        profileData.cloningStylePrompt = 'Speaking in a natural, warm, and expressive female voice with clear melodic feminine intonation.';
-      }
-    } else {
-      profileData.gender = 'Male';
-      if (!['Fenrir', 'Charon', 'Puck'].includes(profileData.bestBaseVoice)) {
-        profileData.bestBaseVoice = 'Fenrir';
-      }
-    }
-
-    // Calculate DSP tuning profile based on extracted fundamental frequency
-    const baseFreq = isFemale ? 210 : 115;
-    const detectedFreq = profileData.fundamentalFreqHz || baseFreq;
-    let calculatedPitchShift = Math.round(12 * Math.log2(detectedFreq / baseFreq));
-    calculatedPitchShift = Math.max(-8, Math.min(8, calculatedPitchShift));
-
-    const warmthScore = profileData.timbreScores?.warmth ?? 7;
-    const brightScore = profileData.timbreScores?.brightness ?? 7;
-    const resonanceScore = profileData.timbreScores?.resonance ?? 7;
-
-    const calculatedBassWarmth = Math.round((warmthScore - 5) * 1.5 * 10) / 10;
-    const calculatedMidPresence = Math.round((resonanceScore - 5) * 1.2 * 10) / 10;
-    const calculatedTrebleAir = Math.round((brightScore - 5) * 1.5 * 10) / 10;
-
-    profileData.recommendedTuning = {
-      pitchShiftSemitones: calculatedPitchShift,
-      speedMultiplier: 1.0,
-      eqBassBoostDb: calculatedBassWarmth,
-      eqTrebleBoostDb: calculatedTrebleAir,
-    };
-
-    profileData.dspConfig = {
-      pitchSemitones: calculatedPitchShift,
-      speedMultiplier: 1.0,
-      bassWarmthDb: calculatedBassWarmth,
-      midPresenceDb: calculatedMidPresence,
-      trebleAirDb: calculatedTrebleAir,
-    };
-
-    if (!profileData.name && sampleName) {
-      profileData.name = sampleName;
-    }
-
-    const voiceProfileId = `voice_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-
-    res.json({
-      success: true,
-      profile: {
-        id: voiceProfileId,
-        ...profileData,
-        referenceAudioUrl: `data:${safeMime};base64,${cleanBase64}`,
-        createdAt: new Date().toISOString(),
+    voice = await ai.voices.create({
+      store: true,
+      voice: {
+        type: 'prompted',
+        display_name: displayName,
+        language_code: lang,
+        ...(gender === 'female' || gender === 'male' || gender === 'neutral' ? { gender } : {}),
+        prompted: { input: prompt.trim().slice(0, 1000) },
       },
     });
-  } catch (error: any) {
-    console.error('Error in /api/clone/analyze:', error);
-    res.status(500).json({
-      error: error?.message || 'Failed to analyze audio for voice cloning. Please verify the audio file.',
+  } catch (err: any) {
+    console.error('Error in /api/voices/design (create):', err);
+    const message = googleErrorMessage(err);
+    res.status(isQuotaError(err) ? 429 : 500).json({
+      error: /stored voice|voice quota/i.test(message)
+        ? 'Stored voice limit reached. Delete some designed voices and try again.'
+        : message || 'Failed to design voice.',
     });
+    return;
   }
+
+  if (!voice?.id) {
+    res.status(500).json({ error: 'Gemini did not return a voice id.' });
+    return;
+  }
+
+  // Prefer the preview Gemini returns; otherwise synthesize a short line with the new voice.
+  let previewAudioUrl = sampleAudioToUrl(voice.sample_audio);
+  if (!previewAudioUrl) {
+    try {
+      const preview = await ai.models.generateContent({
+        model: 'gemini-3.8-flash-tts',
+        contents: [{ role: 'user', parts: [{ text: DESIGN_PREVIEW_TEXT[lang === 'en-US' ? 'en' : 'zh'] }] }],
+        config: {
+          responseModalities: ['AUDIO'],
+          speechConfig: { voiceConfig: { voice: voice.id } },
+        },
+      });
+      const part = preview.candidates?.[0]?.content?.parts?.find((p: any) => p.inlineData?.data);
+      if (part?.inlineData?.data) {
+        previewAudioUrl = formatAudioResponse(part.inlineData.data, 24000).audioUrl;
+      }
+    } catch (err: any) {
+      console.warn('Voice created but preview synthesis failed:', googleErrorMessage(err));
+    }
+  }
+
+  res.json({
+    success: true,
+    voice: {
+      id: voice.id,
+      name: voice.display_name || displayName,
+      prompt: prompt.trim(),
+      languageCode: voice.language_code || lang,
+      gender: voice.gender,
+      description: voice.description,
+      expireTime: voice.expire_time,
+      previewAudioUrl,
+      createdAt: new Date().toISOString(),
+    },
+  });
 });
 
 /**
- * POST /api/clone/synthesize
- * Outputs text-to-speech in the cloned voice timbre by leveraging gemini-3.8-flash-lite-tts
- * with rate-limit retry backoff and acoustic emulation fallback to guarantee 100% success.
+ * DELETE /api/voices/:id
+ * Deletes a stored custom voice so it stops counting against the project quota.
  */
-app.post('/api/clone/synthesize', async (req, res) => {
+app.delete('/api/voices/:id', async (req, res) => {
+  const { id } = req.params;
+  if (!CUSTOM_VOICE_ID.test(id)) {
+    res.status(400).json({ error: 'Invalid voice id.' });
+    return;
+  }
   try {
-    const {
-      text,
-      clonedProfile,
-      outputLanguage = 'auto',
-      customTuning = {},
-    } = req.body;
-
-    if (!text || typeof text !== 'string' || !text.trim()) {
-      res.status(400).json({ error: 'Text content is required' });
+    await ai.voices.delete(id);
+    res.json({ success: true });
+  } catch (err: any) {
+    const message = googleErrorMessage(err);
+    // Already gone on Google's side: treat as deleted.
+    if (/not found|NOT_FOUND|404/i.test(String(err?.message || ''))) {
+      res.json({ success: true });
       return;
     }
-
-    if (!clonedProfile) {
-      res.status(400).json({ error: 'Cloned voice profile is required' });
-      return;
-    }
-
-    const isFemaleVoice =
-      /female|woman|girl|lady|女/i.test(clonedProfile.gender || '') ||
-      /female|woman|girl|lady|女/i.test(clonedProfile.name || '') ||
-      ['Kore', 'Zephyr'].includes(clonedProfile.bestBaseVoice);
-
-    // Strictly ensure female base voice for female profiles (Kore or Zephyr), never male
-    let baseVoice: string;
-    if (isFemaleVoice) {
-      baseVoice = ['Kore', 'Zephyr'].includes(clonedProfile.bestBaseVoice)
-        ? clonedProfile.bestBaseVoice
-        : 'Kore';
-    } else {
-      baseVoice = ['Charon', 'Fenrir', 'Puck'].includes(clonedProfile.bestBaseVoice)
-        ? clonedProfile.bestBaseVoice
-        : 'Fenrir';
-    }
-
-    // Determine effective speech language with smart text content detection
-    const hasEnglishLetters = /[a-zA-Z]{3,}/.test(text);
-    const hasChineseChars = /[\u4e00-\u9fa5]/.test(text);
-    const effectiveLang =
-      outputLanguage === 'en'
-        ? 'en'
-        : outputLanguage === 'zh'
-        ? 'zh'
-        : (hasEnglishLetters && !hasChineseChars ? 'en' : 'zh');
-
-    // Construct enriched cloning style prompt tailored to the requested language
-    let finalStylePrompt: string;
-    if (effectiveLang === 'en') {
-      const enTone = isFemaleVoice
-        ? 'warm, melodic, expressive female voice timbre with clear feminine intonation'
-        : 'deep, resonant, commanding male voice timbre with rich chest presence';
-      finalStylePrompt = `Pronounced in fluent, authentic English with natural diction, smooth cadence, and ${enTone}.`;
-    } else {
-      const zhTone = isFemaleVoice ? '清晰温润柔美、富有亲和力的女声' : '沉稳磁性厚重、自然有力的男声';
-      finalStylePrompt = `以地道标准普通话自然朗读，发音清晰流畅，带有${zhTone}的声学共鸣与语调。`;
-    }
-
-    if (clonedProfile.cloningStylePrompt) {
-      finalStylePrompt += ` ${clonedProfile.cloningStylePrompt}`;
-    }
-
-    if (customTuning.pitchAdjustment && customTuning.pitchAdjustment !== 0) {
-      const pitchDesc = customTuning.pitchAdjustment > 0 ? 'slightly higher pitch' : 'deeper pitch register';
-      finalStylePrompt += `, delivered in a ${pitchDesc}`;
-    }
-
-    if (customTuning.speedAdjustment && customTuning.speedAdjustment !== 1.0) {
-      const speedDesc = customTuning.speedAdjustment > 1.0 ? 'brisk pacing' : 'deliberate, slower tempo';
-      finalStylePrompt += `, with ${speedDesc}`;
-    }
-
-    if (customTuning.warmthBonus) {
-      finalStylePrompt += `, rich resonant chest warmth`;
-    }
-
-    // High-availability TTS synthesis with dual-model failover and automatic backoff
-    let response: any = null;
-    const modelsToTry = ['gemini-3.8-flash-lite-tts', 'gemini-3.8-flash-tts'];
-
-    for (const modelName of modelsToTry) {
-      let modelSucceeded = false;
-      for (let attempt = 1; attempt <= 2; attempt++) {
-        try {
-          response = await ai.models.generateContent({
-            model: modelName,
-            contents: [
-              {
-                role: 'user',
-                parts: [
-                  {
-                    text: text.trim(),
-                    speechMetadata: {
-                      style: finalStylePrompt,
-                    },
-                  },
-                ],
-              },
-            ],
-            config: {
-              responseModalities: ['AUDIO'],
-              speechConfig: {
-                voiceConfig: {
-                  prebuiltVoiceConfig: { voiceName: baseVoice },
-                },
-              },
-            },
-          });
-
-          if (response?.candidates?.[0]?.content?.parts?.find((p: any) => p.inlineData?.data)) {
-            modelSucceeded = true;
-            break;
-          }
-        } catch (err: any) {
-          const errMsg = String(err?.message || '');
-          const isQuota = errMsg.includes('429') || errMsg.includes('RESOURCE_EXHAUSTED') || errMsg.includes('quota');
-
-          if (isQuota) {
-            // If on first model and it's attempt 1, immediately try second model
-            if (attempt === 1 && modelName === 'gemini-3.8-flash-lite-tts') {
-              console.log(`[TTS Info] Model ${modelName} rate-limited, switching to gemini-3.8-flash-tts...`);
-              break;
-            }
-
-            // Parse retry delay from error details
-            const match = errMsg.match(/retry in ([0-9.]+)/i);
-            const retryDelayMatch = errMsg.match(/"retryDelay":\s*"([0-9.]+)s"/i);
-            const delaySec = retryDelayMatch
-              ? Math.min(8, Math.ceil(parseFloat(retryDelayMatch[1])))
-              : match
-              ? Math.min(8, Math.ceil(parseFloat(match[1])))
-              : 2;
-
-            if (attempt < 2 && delaySec <= 8) {
-              console.log(`[TTS Info] Rate limit cooldown: waiting ${delaySec}s for ${modelName}...`);
-              await new Promise((r) => setTimeout(r, delaySec * 1000));
-              continue;
-            }
-          }
-        }
-      }
-
-      if (modelSucceeded) {
-        break;
-      }
-    }
-
-    const candidate = response?.candidates?.[0];
-    const audioPart = candidate?.content?.parts?.find((p: any) => p.inlineData?.data);
-
-    if (!audioPart || !audioPart.inlineData?.data) {
-      // Graceful fallback to acoustic synthesis
-      const approxDuration = Math.max(2.5, Math.min(8, text.length * 0.25));
-      const fallback = generateFallbackPcmWav(text, isFemaleVoice, approxDuration);
-      res.json({
-        success: true,
-        audioUrl: fallback.audioUrl,
-        durationSec: fallback.durationSec,
-        voiceName: clonedProfile.name || 'Cloned Voice',
-        baseVoice,
-        outputLanguage: outputLanguage || 'auto',
-        stylePrompt: finalStylePrompt,
-        charCount: text.length,
-        isEmulated: true,
-        createdAt: new Date().toISOString(),
-      });
-      return;
-    }
-
-    const base64Data = audioPart.inlineData.data;
-    const { audioUrl, durationSec } = formatAudioResponse(base64Data, 24000);
-
-    res.json({
-      success: true,
-      audioUrl,
-      durationSec,
-      voiceName: clonedProfile.name || 'Cloned Voice',
-      baseVoice,
-      outputLanguage: outputLanguage || 'auto',
-      stylePrompt: finalStylePrompt,
-      charCount: text.length,
-      createdAt: new Date().toISOString(),
-    });
-  } catch (error: any) {
-    console.error('Error in /api/clone/synthesize:', error);
-    // Never send 500 error on TTS synthesis; synthesize graceful acoustic fallback
-    const isFemale = /female|woman|girl|lady|女/i.test(req.body?.clonedProfile?.gender || '') ||
-      ['Kore', 'Zephyr'].includes(req.body?.clonedProfile?.bestBaseVoice);
-    const approxDuration = 3.0;
-    const fallback = generateFallbackPcmWav(req.body?.text || 'Test', isFemale, approxDuration);
-    res.json({
-      success: true,
-      audioUrl: fallback.audioUrl,
-      durationSec: fallback.durationSec,
-      voiceName: req.body?.clonedProfile?.name || 'Cloned Voice',
-      baseVoice: isFemale ? 'Kore' : 'Fenrir',
-      outputLanguage: req.body?.outputLanguage || 'auto',
-      stylePrompt: 'Acoustic fallback',
-      charCount: (req.body?.text || '').length,
-      isEmulated: true,
-      createdAt: new Date().toISOString(),
-    });
+    console.error('Error in DELETE /api/voices/:id:', err);
+    res.status(500).json({ error: message || 'Failed to delete voice.' });
   }
 });
 

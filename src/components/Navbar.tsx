@@ -1,15 +1,14 @@
 import React from 'react';
-import { Volume2, Dna, History, Library, Mic, Sun, Moon, Github } from 'lucide-react';
+import { Volume2, Wand2, History, Mic, Sun, Moon, Github } from 'lucide-react';
 import { UILanguage, ThemeMode } from '../types';
 import { I18N } from '../constants/i18n';
-import { ENABLE_VOICE_CLONING } from '../constants/features';
 
-type TabId = 'studio' | 'cloning' | 'library' | 'history';
+type TabId = 'studio' | 'design' | 'history';
 
 interface NavbarProps {
   activeTab: TabId;
   onTabChange: (tab: TabId) => void;
-  clonedCount: number;
+  designedCount: number;
   historyCount: number;
   uiLang: UILanguage;
   onToggleUiLang: () => void;
@@ -20,7 +19,7 @@ interface NavbarProps {
 export const Navbar: React.FC<NavbarProps> = ({
   activeTab,
   onTabChange,
-  clonedCount,
+  designedCount,
   historyCount,
   uiLang,
   onToggleUiLang,
@@ -31,12 +30,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   const tabs: { id: TabId; label: string; icon: React.ReactNode; count?: number }[] = [
     { id: 'studio', label: t.tabStudio, icon: <Mic className="w-3.5 h-3.5" /> },
-    ...(ENABLE_VOICE_CLONING
-      ? [
-          { id: 'cloning' as TabId, label: t.tabCloning, icon: <Dna className="w-3.5 h-3.5" /> },
-          { id: 'library' as TabId, label: t.tabLibrary, icon: <Library className="w-3.5 h-3.5" />, count: clonedCount },
-        ]
-      : []),
+    { id: 'design', label: t.tabDesign, icon: <Wand2 className="w-3.5 h-3.5" />, count: designedCount },
     { id: 'history', label: t.tabHistory, icon: <History className="w-3.5 h-3.5" />, count: historyCount },
   ];
 

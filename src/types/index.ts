@@ -34,45 +34,17 @@ export interface VoiceStylePreset {
   category: 'Broadcast' | 'Story' | 'Commercial' | 'Emotion' | 'Casual';
 }
 
-export interface TimbreScores {
-  warmth: number; // 1-10
-  brightness: number; // 1-10
-  gravel: number; // 1-10
-  breathiness: number; // 1-10
-  resonance: number; // 1-10
-}
-
-export interface DspTuningConfig {
-  pitchSemitones: number;
-  speedMultiplier: number;
-  bassWarmthDb: number;
-  midPresenceDb: number;
-  trebleAirDb: number;
-}
-
-export interface ClonedVoiceProfile {
+export interface DesignedVoice {
+  /** Gemini stored voice id, e.g. voice_abc123 */
   id: string;
   name: string;
-  gender: string;
-  ageEstimate: string;
-  accent: string;
-  pitchRegister: string;
-  fundamentalFreqHz?: number;
-  timbreDescription: string;
-  cadence: string;
-  timbreScores: TimbreScores;
-  bestBaseVoice: PrebuiltVoiceName;
-  cloningStylePrompt: string;
-  recommendedTuning?: {
-    pitchShiftSemitones?: number;
-    speedMultiplier?: number;
-    eqBassBoostDb?: number;
-    eqTrebleBoostDb?: number;
-  };
-  dspConfig?: DspTuningConfig;
-  transcription?: string;
-  summary: string;
-  referenceAudioUrl: string;
+  /** The natural-language description the voice was designed from */
+  prompt: string;
+  languageCode: string;
+  gender?: string;
+  description?: string;
+  previewAudioUrl?: string;
+  expireTime?: string;
   createdAt: string;
 }
 
@@ -82,8 +54,8 @@ export interface SpeechGenerationRecord {
   audioUrl: string;
   durationSec: number;
   voiceName: string;
-  isClonedVoice?: boolean;
-  clonedVoiceId?: string;
+  isCustomVoice?: boolean;
+  customVoiceId?: string;
   baseVoice?: string;
   outputLanguage?: OutputLanguage;
   stylePrompt: string;
@@ -101,17 +73,4 @@ export interface SampleScript {
   text: string;
   suggestedStyleId?: string;
   suggestedVoice?: PrebuiltVoiceName;
-}
-
-export interface ReferenceVoiceSample {
-  id: string;
-  name: string;
-  description: string;
-  descriptionZh: string;
-  speakerInfo: string;
-  speakerInfoZh: string;
-  gender: string;
-  accent: string;
-  audioUrl: string;
-  preAnalyzedProfile?: Partial<ClonedVoiceProfile>;
 }
