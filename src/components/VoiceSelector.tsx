@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { PREBUILT_VOICES } from '../constants/voices';
 import { PrebuiltVoiceName, ClonedVoiceProfile, UILanguage, OutputLanguage } from '../types';
 import { I18N } from '../constants/i18n';
-import { Dna, Volume2, Play, Pause, Loader2 } from 'lucide-react';
+import { Dna, Play, Pause, Loader2, CheckCircle2 } from 'lucide-react';
 
 interface VoiceSelectorProps {
   selectedVoiceId: string;
@@ -138,47 +138,27 @@ export const VoiceSelector: React.FC<VoiceSelectorProps> = ({
     <div className="space-y-4">
       {/* Header and Filter */}
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <label className="text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">
-          {t.voicePersonaLabel}
-        </label>
+        <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{t.voicePersonaLabel}</h2>
 
-        {/* Language suitability filter tabs */}
-        <div className="flex items-center gap-1 p-0.5 bg-zinc-100 dark:bg-zinc-950 rounded-lg border border-zinc-200 dark:border-zinc-800 text-[11px]">
-          <button
-            type="button"
-            onClick={() => setLangFilter('all')}
-            className={`px-2 py-0.5 rounded-md transition-colors ${
-              langFilter === 'all'
-                ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 font-medium shadow-sm'
-                : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-300'
-            }`}
-          >
-            {uiLang === 'zh' ? '全部音色' : 'All'}
-          </button>
-          <button
-            type="button"
-            onClick={() => setLangFilter('zh')}
-            className={`px-2 py-0.5 rounded-md transition-colors flex items-center gap-1 ${
-              langFilter === 'zh'
-                ? 'bg-white dark:bg-zinc-800 text-rose-600 dark:text-rose-400 font-medium shadow-sm'
-                : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-300'
-            }`}
-          >
-            <span>🇨🇳</span>
-            <span>{uiLang === 'zh' ? '更适中文' : 'For Chinese'}</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setLangFilter('en')}
-            className={`px-2 py-0.5 rounded-md transition-colors flex items-center gap-1 ${
-              langFilter === 'en'
-                ? 'bg-white dark:bg-zinc-800 text-blue-600 dark:text-blue-400 font-medium shadow-sm'
-                : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-300'
-            }`}
-          >
-            <span>🇺🇸</span>
-            <span>{uiLang === 'zh' ? '更适英语' : 'For English'}</span>
-          </button>
+        <div className="flex items-center p-0.5 bg-zinc-100 dark:bg-zinc-950 rounded-lg text-xs">
+          {([
+            ['all', uiLang === 'zh' ? '全部' : 'All'],
+            ['zh', uiLang === 'zh' ? '适合中文' : 'Chinese'],
+            ['en', uiLang === 'zh' ? '适合英语' : 'English'],
+          ] as ['all' | 'zh' | 'en', string][]).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setLangFilter(id)}
+              className={`px-2.5 py-1 rounded-md whitespace-nowrap transition-colors ${
+                langFilter === id
+                  ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white font-semibold shadow-sm'
+                  : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-300'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -253,109 +233,99 @@ export const VoiceSelector: React.FC<VoiceSelectorProps> = ({
       )}
 
       {/* Prebuilt Standard Neural Voices */}
-      <div>
-        <div className="flex items-center justify-between text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-2">
-          <div className="flex items-center gap-1.5">
-            <Volume2 className="w-3.5 h-3.5 text-indigo-500" />
-            <span>{t.standardNeuralVoices}</span>
-          </div>
-          {outputLanguage !== 'auto' && (
-            <span className="text-[11px] text-indigo-600 dark:text-indigo-400">
-              {outputLanguage === 'zh'
-                ? '💡 中文输出首推 Kore (柔和)、Zephyr (知性)'
-                : '💡 English: Puck (Energetic), Fenrir (Epic), Charon (Gritty)'}
-            </span>
-          )}
-        </div>
+      <div className="space-y-2.5">
+        {outputLanguage !== 'auto' && (
+          <p className="text-xs text-zinc-500 dark:text-zinc-400">
+            {outputLanguage === 'zh'
+              ? '中文朗读推荐 Kore（温润）或 Zephyr（知性）'
+              : 'For English, try Puck (energetic), Fenrir (epic) or Charon (gritty)'}
+          </p>
+        )}
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
           {filteredVoices.map((voice) => {
             const isSelected = !isClonedVoiceSelected && selectedVoiceId === voice.id;
             const isPlayingThis = playingVoiceId === voice.id;
             const isLoadingThis = loadingVoiceId === voice.id;
+            const genderLabel =
+              uiLang === 'zh'
+                ? voice.gender === 'Feminine' ? '女声' : voice.gender === 'Masculine' ? '男声' : '中性'
+                : voice.gender === 'Feminine' ? 'Female' : voice.gender === 'Masculine' ? 'Male' : 'Neutral';
+            const isBilingual = voice.recommendedLanguages.includes('zh') && voice.recommendedLanguages.includes('en');
 
             return (
               <div
                 key={voice.id}
+                role="button"
+                tabIndex={0}
                 onClick={() => onSelectPrebuiltVoice(voice.id)}
-                className={`relative text-left p-3.5 rounded-lg border transition-all flex flex-col justify-between cursor-pointer ${
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    onSelectPrebuiltVoice(voice.id);
+                  }
+                }}
+                title={uiLang === 'zh' ? voice.suitabilityDescriptionZh : voice.suitabilityDescriptionEn}
+                className={`relative p-3.5 rounded-xl border transition-all cursor-pointer flex flex-col gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
                   isSelected
-                    ? 'bg-indigo-50/80 dark:bg-indigo-950/30 border-indigo-500 shadow-sm'
+                    ? 'bg-indigo-50/70 dark:bg-indigo-950/30 border-indigo-500 ring-1 ring-indigo-500'
                     : 'bg-white dark:bg-zinc-900/60 border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700'
                 }`}
               >
-                <div>
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-semibold text-sm text-zinc-900 dark:text-zinc-100">
-                        {voice.name}
-                      </span>
-                      <span className="text-[11px] font-normal text-zinc-500">
-                        ({uiLang === 'zh' ? (voice.gender === 'Feminine' ? '女声' : voice.gender === 'Masculine' ? '男声' : '中性') : voice.gender})
-                      </span>
-                    </div>
-
-                    {/* Interactive Voice Preview Button */}
-                    <button
-                      type="button"
-                      onClick={(e) => handleTogglePreview(e, voice.id)}
-                      className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold transition-all ${
-                        isPlayingThis
-                          ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30 animate-pulse'
-                          : 'bg-indigo-50 dark:bg-indigo-500/10 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-500/30'
-                      }`}
-                      title={uiLang === 'zh' ? `试听 ${voice.name} 朗读样句` : `Audition ${voice.name} sample sentence`}
-                    >
-                      {isLoadingThis ? (
-                        <Loader2 className="w-3 h-3 animate-spin" />
-                      ) : isPlayingThis ? (
-                        <Pause className="w-3 h-3 fill-current" />
-                      ) : (
-                        <Play className="w-3 h-3 fill-current" />
-                      )}
-                      <span className="text-[11px]">
-                        {isPlayingThis ? t.previewPlayingBtn : t.previewVoiceBtn}
-                      </span>
-                    </button>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    {isSelected ? (
+                      <CheckCircle2 className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
+                    ) : (
+                      <span className="w-4 h-4 rounded-full border border-zinc-300 dark:border-zinc-600 shrink-0" />
+                    )}
+                    <span className="font-semibold text-sm text-zinc-900 dark:text-zinc-100">{voice.name}</span>
+                    <span className="text-xs text-zinc-500 whitespace-nowrap">{genderLabel}</span>
                   </div>
 
-                  {/* Language Suitability Tag */}
-                  <div className="mt-2">
-                    <span className={`inline-block text-[10px] font-medium px-1.5 py-0.5 rounded ${
-                      voice.recommendedLanguages.includes('zh') && voice.recommendedLanguages.includes('en')
-                        ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60'
-                        : 'bg-blue-100 dark:bg-blue-950/60 text-blue-800 dark:text-blue-300 border border-blue-200 dark:border-blue-800/60'
-                    }`}>
-                      {uiLang === 'zh' ? voice.suitabilityTagZh : voice.suitabilityTagEn}
-                    </span>
-                  </div>
-
-                  <p className="text-xs text-zinc-700 dark:text-zinc-300 mt-2 leading-relaxed">
-                    {uiLang === 'zh' ? voice.timbreDescriptionZh : voice.timbreDescription}
-                  </p>
-
-                  <p className="text-[11px] text-zinc-500 mt-1 italic">
-                    {uiLang === 'zh' ? voice.suitabilityDescriptionZh : voice.suitabilityDescriptionEn}
-                  </p>
+                  <button
+                    type="button"
+                    onClick={(e) => handleTogglePreview(e, voice.id)}
+                    className={`shrink-0 flex items-center gap-1 h-7 px-2.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
+                      isPlayingThis
+                        ? 'bg-indigo-600 text-white'
+                        : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 hover:text-indigo-700 dark:hover:text-indigo-300'
+                    }`}
+                    title={uiLang === 'zh' ? `试听 ${voice.name} 朗读样句` : `Preview ${voice.name}`}
+                  >
+                    {isLoadingThis ? (
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                    ) : isPlayingThis ? (
+                      <Pause className="w-3 h-3 fill-current" />
+                    ) : (
+                      <Play className="w-3 h-3 fill-current" />
+                    )}
+                    <span>{isPlayingThis ? t.previewPlayingBtn : t.previewVoiceBtn}</span>
+                  </button>
                 </div>
 
-                <div className="mt-3 pt-2 border-t border-zinc-100 dark:border-zinc-800/60 flex items-center justify-between">
-                  <div className="flex flex-wrap gap-1">
-                    {(uiLang === 'zh' ? voice.toneZh : voice.tone).slice(0, 3).map((t) => (
-                      <span
-                        key={t}
-                        className="text-[10px] text-zinc-600 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800/80 px-1.5 py-0.5 rounded"
-                      >
-                        {t}
-                      </span>
-                    ))}
-                  </div>
+                <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed line-clamp-2">
+                  {uiLang === 'zh' ? voice.timbreDescriptionZh : voice.timbreDescription}
+                </p>
 
-                  {isSelected && (
-                    <span className="text-[10px] font-semibold text-indigo-700 dark:text-indigo-300 bg-indigo-100 dark:bg-indigo-950/60 px-1.5 py-0.5 rounded">
-                      {uiLang === 'zh' ? '当前选择' : 'Selected'}
+                <div className="flex flex-wrap gap-1">
+                  <span
+                    className={`text-[11px] px-1.5 py-0.5 rounded ${
+                      isBilingual
+                        ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300'
+                        : 'bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300'
+                    }`}
+                  >
+                    {isBilingual ? (uiLang === 'zh' ? '中英双语' : 'Bilingual') : (uiLang === 'zh' ? '英语优先' : 'English first')}
+                  </span>
+                  {(uiLang === 'zh' ? voice.toneZh : voice.tone).slice(0, 2).map((tone) => (
+                    <span
+                      key={tone}
+                      className="text-[11px] text-zinc-600 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800/80 px-1.5 py-0.5 rounded"
+                    >
+                      {tone}
                     </span>
-                  )}
+                  ))}
                 </div>
               </div>
             );

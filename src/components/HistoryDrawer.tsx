@@ -81,7 +81,7 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
                           ? 'bg-rose-100 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300'
                           : 'bg-blue-100 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300'
                       }`}>
-                        {item.outputLanguage === 'zh' ? '🇨🇳 中文' : '🇺🇸 EN'}
+                        {item.outputLanguage === 'zh' ? '中文' : 'EN'}
                       </span>
                     )}
                     <span className="text-zinc-400">·</span>

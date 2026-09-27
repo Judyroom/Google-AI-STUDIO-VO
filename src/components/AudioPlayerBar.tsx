@@ -166,8 +166,8 @@ export const AudioPlayerBar: React.FC<AudioPlayerBarProps> = ({
                   : 'bg-blue-100 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800/60'
               }`}>
                 {outputLanguage === 'zh'
-                  ? (uiLang === 'zh' ? '🇨🇳 中文输出' : '🇨🇳 Chinese')
-                  : (uiLang === 'zh' ? '🇺🇸 英语输出' : '🇺🇸 English')}
+                  ? (uiLang === 'zh' ? '中文输出' : 'Chinese')
+                  : (uiLang === 'zh' ? '英语输出' : 'English')}
               </span>
             )}
           </div>

@@ -59,9 +59,7 @@ export const StyleSelector: React.FC<StyleSelectorProps> = ({
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <label className="text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">
-          {t.deliveryStyleLabel}
-        </label>
+        <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{t.deliveryStyleLabel}</h2>
         <button
           type="button"
           onClick={onToggleCustom}
@@ -101,7 +99,7 @@ export const StyleSelector: React.FC<StyleSelectorProps> = ({
           />
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        <div className="grid grid-cols-2 gap-2">
           {VOICE_STYLE_PRESETS.map((preset) => {
             const isSelected = !isCustomActive && selectedStyleId === preset.id;
             return (
@@ -109,7 +107,7 @@ export const StyleSelector: React.FC<StyleSelectorProps> = ({
                 key={preset.id}
                 type="button"
                 onClick={() => onSelectPreset(preset)}
-                className={`flex flex-col items-start p-2.5 rounded-lg border text-left transition-all ${
+                className={`flex flex-col items-start p-2.5 rounded-xl border text-left transition-all ${
                   isSelected
                     ? 'bg-indigo-50 dark:bg-indigo-950/40 border-indigo-500 text-zinc-900 dark:text-zinc-100 shadow-sm'
                     : 'bg-white dark:bg-zinc-900/60 border-zinc-200 dark:border-zinc-800/80 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-900 hover:border-zinc-300 dark:hover:border-zinc-700'

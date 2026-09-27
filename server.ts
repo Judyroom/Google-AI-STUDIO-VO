@@ -214,22 +214,6 @@ app.post('/api/tts/generate', async (req, res) => {
 });
 
 /**
- * GET /api/export/download-zip
- * Bundles the clean source code into a ZIP file for immediate local download.
- */
-app.get('/api/export/download-zip', async (req, res) => {
-  try {
-    const { execSync } = await import('child_process');
-    const zipPath = '/tmp/resona-ai-studio-voice.zip';
-    execSync('python3 scripts/create_zip.py');
-    res.download(zipPath, 'resona-ai-studio-voice.zip');
-  } catch (err: any) {
-    console.error('Error creating source zip:', err);
-    res.status(500).json({ error: 'Failed to create zip file' });
-  }
-});
-
-/**
  * Cache for instant voice sample previews
  */
 const previewCache = new Map<string, { audioUrl: string; durationSec: number }>();

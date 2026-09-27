@@ -1,11 +1,14 @@
 import React from 'react';
-import { Volume2, Dna, History, Library, Mic, Sun, Moon, Globe, Download } from 'lucide-react';
+import { Volume2, Dna, History, Library, Mic, Sun, Moon, Github } from 'lucide-react';
 import { UILanguage, ThemeMode } from '../types';
 import { I18N } from '../constants/i18n';
+import { ENABLE_VOICE_CLONING } from '../constants/features';
+
+type TabId = 'studio' | 'cloning' | 'library' | 'history';
 
 interface NavbarProps {
-  activeTab: 'studio' | 'cloning' | 'library' | 'history';
-  onTabChange: (tab: 'studio' | 'cloning' | 'library' | 'history') => void;
+  activeTab: TabId;
+  onTabChange: (tab: TabId) => void;
   clonedCount: number;
   historyCount: number;
   uiLang: UILanguage;
@@ -26,147 +29,91 @@ export const Navbar: React.FC<NavbarProps> = ({
 }) => {
   const t = I18N[uiLang];
 
+  const tabs: { id: TabId; label: string; icon: React.ReactNode; count?: number }[] = [
+    { id: 'studio', label: t.tabStudio, icon: <Mic className="w-3.5 h-3.5" /> },
+    ...(ENABLE_VOICE_CLONING
+      ? [
+          { id: 'cloning' as TabId, label: t.tabCloning, icon: <Dna className="w-3.5 h-3.5" /> },
+          { id: 'library' as TabId, label: t.tabLibrary, icon: <Library className="w-3.5 h-3.5" />, count: clonedCount },
+        ]
+      : []),
+    { id: 'history', label: t.tabHistory, icon: <History className="w-3.5 h-3.5" />, count: historyCount },
+  ];
+
+  const iconButton =
+    'flex items-center justify-center gap-1.5 h-8 px-2.5 rounded-lg border border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white hover:border-zinc-300 dark:hover:border-zinc-700 text-xs font-medium transition-colors';
+
   return (
     <header className="border-b border-zinc-200 dark:border-zinc-800 bg-white/90 dark:bg-zinc-950/80 backdrop-blur-md sticky top-0 z-40 transition-colors">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
         {/* Brand */}
         <div className="flex items-center gap-3 shrink-0">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-600 via-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/25 text-white font-bold">
-            <Volume2 className="w-5 h-5 fill-current" />
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center text-white">
+            <Volume2 className="w-5 h-5" />
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-extrabold text-base tracking-tight text-zinc-900 dark:text-zinc-100">
-                Resona
-              </span>
-              <span className="text-[11px] font-mono text-zinc-500 dark:text-zinc-400">
-                {uiLang === 'zh' ? '语音工坊' : 'Audio Studio'}
-              </span>
-            </div>
-            <p className="text-[11px] text-zinc-500 dark:text-zinc-400 hidden sm:block">
-              {t.brandSubtitle}
-            </p>
+          <div className="leading-tight">
+            <div className="font-bold text-[15px] tracking-tight text-zinc-900 dark:text-zinc-100">Resona</div>
+            <p className="hidden sm:block text-xs text-zinc-500 dark:text-zinc-400">{t.brandSubtitle}</p>
           </div>
         </div>
 
         {/* Navigation Tabs */}
-        <nav className="flex items-center gap-1 p-1 bg-zinc-100 dark:bg-zinc-900/80 rounded-xl border border-zinc-200 dark:border-zinc-800/80 text-xs overflow-x-auto">
-          <button
-            type="button"
-            onClick={() => onTabChange('studio')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition-all shrink-0 ${
-              activeTab === 'studio'
-                ? 'bg-indigo-600 text-white font-semibold shadow-sm shadow-indigo-600/25'
-                : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60'
-            }`}
-          >
-            <Mic className="w-3.5 h-3.5" />
-            <span>{t.tabStudio}</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => onTabChange('cloning')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition-all shrink-0 ${
-              activeTab === 'cloning'
-                ? 'bg-cyan-500 text-zinc-950 font-semibold shadow-sm shadow-cyan-500/20'
-                : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60'
-            }`}
-          >
-            <Dna className="w-3.5 h-3.5" />
-            <span>{t.tabCloning}</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => onTabChange('library')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition-all shrink-0 ${
-              activeTab === 'library'
-                ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 font-semibold shadow-sm'
-                : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60'
-            }`}
-          >
-            <Library className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">{t.tabLibrary}</span>
-            {clonedCount > 0 && (
-              <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-cyan-100 dark:bg-cyan-500/20 text-cyan-800 dark:text-cyan-300">
-                {clonedCount}
-              </span>
-            )}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => onTabChange('history')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition-all shrink-0 ${
-              activeTab === 'history'
-                ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 font-semibold shadow-sm'
-                : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60'
-            }`}
-          >
-            <History className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">{t.tabHistory}</span>
-            {historyCount > 0 && (
-              <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300">
-                {historyCount}
-              </span>
-            )}
-          </button>
+        <nav className="order-last sm:order-none w-full sm:w-auto flex items-center gap-1 p-1 bg-zinc-100 dark:bg-zinc-900 rounded-xl text-sm">
+          {tabs.map((tab) => {
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => onTabChange(tab.id)}
+                className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-lg whitespace-nowrap transition-all ${
+                  isActive
+                    ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white font-semibold shadow-sm'
+                    : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
+                }`}
+              >
+                {tab.icon}
+                <span>{tab.label}</span>
+                {!!tab.count && (
+                  <span className="text-[10px] font-mono px-1.5 rounded-full bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300">
+                    {tab.count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </nav>
 
-        {/* Global Controls: Download, Language & Theme */}
+        {/* Global Controls: GitHub, Language & Theme */}
         <div className="flex items-center gap-2 shrink-0">
-          {/* Download Source Code ZIP */}
           <a
-            href="/api/export/download-zip"
-            download="resona-ai-studio-voice.zip"
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-indigo-200 dark:border-indigo-800/80 bg-indigo-50/80 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 text-xs font-semibold shadow-xs transition-colors"
-            title={uiLang === 'zh' ? '一键打包下载全部源码 ZIP 压缩包' : 'Download Complete Source Code ZIP'}
+            href="https://github.com/Judyroom/Google-AI-STUDIO-VO"
+            target="_blank"
+            rel="noopener noreferrer"
+            className={iconButton}
+            title={uiLang === 'zh' ? '在 GitHub 查看项目' : 'View project on GitHub'}
           >
-            <Download className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
-            <span>{uiLang === 'zh' ? '下载源码 ZIP' : 'Download ZIP'}</span>
+            <Github className="w-4 h-4" />
+            <span className="hidden md:inline">GitHub</span>
           </a>
 
-          {/* Language Switcher */}
           <button
             type="button"
             onClick={onToggleUiLang}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-zinc-300 dark:border-zinc-700/80 bg-zinc-100 dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200 hover:border-indigo-500 text-xs font-medium transition-colors"
+            className={iconButton}
             title="Switch Language / 切换界面语言"
           >
-            <Globe className="w-3.5 h-3.5 text-indigo-500" />
-            <span>{uiLang === 'zh' ? '中 / EN' : 'EN / 中'}</span>
+            {uiLang === 'zh' ? 'EN' : '中文'}
           </button>
 
-          {/* Theme Switcher Segmented Toggle */}
-          <div className="flex items-center p-1 bg-zinc-100 dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 text-xs">
-            <button
-              type="button"
-              onClick={() => theme !== 'light' && onToggleTheme()}
-              className={`flex items-center gap-1 px-2 py-1 rounded-md transition-all ${
-                theme === 'light'
-                  ? 'bg-white text-zinc-900 font-bold shadow-sm'
-                  : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-300'
-              }`}
-              title={t.themeLight}
-            >
-              <Sun className="w-3.5 h-3.5 text-yellow-500" />
-              <span className="hidden sm:inline text-[11px]">{uiLang === 'zh' ? '浅色' : 'Light'}</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => theme !== 'dark' && onToggleTheme()}
-              className={`flex items-center gap-1 px-2 py-1 rounded-md transition-all ${
-                theme === 'dark'
-                  ? 'bg-zinc-800 text-zinc-100 font-bold shadow-sm'
-                  : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-300'
-              }`}
-              title={t.themeDark}
-            >
-              <Moon className="w-3.5 h-3.5 text-indigo-400" />
-              <span className="hidden sm:inline text-[11px]">{uiLang === 'zh' ? '深色' : 'Dark'}</span>
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={onToggleTheme}
+            className={`${iconButton} w-8 px-0`}
+            title={theme === 'dark' ? t.themeLight : t.themeDark}
+          >
+            {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          </button>
         </div>
       </div>
     </header>

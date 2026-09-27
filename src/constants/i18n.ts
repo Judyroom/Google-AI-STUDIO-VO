@@ -3,11 +3,11 @@ import { UILanguage } from '../types';
 export const I18N = {
   zh: {
     // Brand
-    brandSubtitle: '神经网络语音合成与音色克隆工作台',
+    brandSubtitle: '基于 Gemini 的语音合成工作台',
     studioName: 'Resona 语音工坊',
 
     // Nav
-    tabStudio: '文本转语音工坊',
+    tabStudio: '语音合成',
     tabCloning: '音色克隆实验室',
     tabLibrary: '已克隆音色库',
     tabHistory: '生成历史',
@@ -19,7 +19,7 @@ export const I18N = {
     langEn: 'English',
 
     // Output language selector
-    outputLangLabel: '目标发音语言',
+    outputLangLabel: '发音语言',
     outputLangHint: '指定语音合成时采用的语言与发音语调：',
     outputLangAuto: '自动识别',
     outputLangZh: '🇨🇳 中文普通话 (Mandarin)',
@@ -37,30 +37,30 @@ export const I18N = {
     voiceBilingual: '中英双优',
 
     // Studio Left Column
-    inputScriptLabel: '输入待朗读文本',
+    inputScriptLabel: '朗读文本',
     speakingWithCloned: '当前正模仿克隆音色：',
-    presetsLabel: '示例文本：',
+    presetsLabel: '示例：',
     textareaPlaceholder: '在此输入您想要朗读的文本内容...',
-    vocalBurstsLabel: '自然呼吸与情绪插入符（点击插入）：',
+    vocalBurstsLabel: '插入语气标记',
     charsLabel: '字符',
     estimatedDuration: '预计时长',
     synthesizeButton: '生成并朗读语音',
-    synthesizingState: '正在通过 Gemini 神经网络合成语音...',
-    outputStationLabel: '音频输出试听工作台',
+    synthesizingState: '正在生成语音…',
+    outputStationLabel: '试听与下载',
 
     // Studio Right Column
-    voicePersonaLabel: '声音角色与音色',
-    previewVoiceBtn: '试听音色',
-    previewPlayingBtn: '播放中',
+    voicePersonaLabel: '选择音色',
+    previewVoiceBtn: '试听',
+    previewPlayingBtn: '停止',
     previewClonedSample: '试听参考音频',
     standardNeuralVoices: 'Gemini 官方标准神经音色',
     clonedProfilesAvailable: '个已保存的克隆音色可用',
-    deliveryStyleLabel: '演绎风格与语调',
+    deliveryStyleLabel: '演绎风格',
     writeCustomStyle: '编写自定义风格',
     usingCustomStyle: '当前使用自定义风格',
     cancelCustom: '取消自定义',
     customStylePlaceholder: '例如：像一位资深播音员，语气温和而坚定，尾音带着自然的亲切感...',
-    neuralTierLabel: '合成模型等级',
+    neuralTierLabel: '合成模型',
     flashLiteName: 'Flash Lite 极速语音',
     flashLiteDesc: '低延迟、高响应速度，日常朗读首选',
     flashName: 'Flash Flagship 旗舰语音',
@@ -147,11 +147,11 @@ export const I18N = {
 
   en: {
     // Brand
-    brandSubtitle: 'Neural Text-to-Speech & Voice Timbre Cloning Studio',
+    brandSubtitle: 'Gemini-powered text-to-speech studio',
     studioName: 'Resona Studio',
 
     // Nav
-    tabStudio: 'TTS Studio',
+    tabStudio: 'Studio',
     tabCloning: 'Voice Cloning Lab',
     tabLibrary: 'Cloned Voices',
     tabHistory: 'History',
@@ -163,7 +163,7 @@ export const I18N = {
     langEn: 'English',
 
     // Output language selector
-    outputLangLabel: 'Speech Output Language',
+    outputLangLabel: 'Speech language',
     outputLangHint: 'Specify the speech pronunciation and tonal cadence for synthesis:',
     outputLangAuto: 'Auto Detect',
     outputLangZh: '🇨🇳 Chinese (Mandarin)',
@@ -181,30 +181,30 @@ export const I18N = {
     voiceBilingual: 'Bilingual Pro',
 
     // Studio Left Column
-    inputScriptLabel: 'Input Script',
+    inputScriptLabel: 'Script',
     speakingWithCloned: 'Speaking with Cloned Voice:',
-    presetsLabel: 'Preset Scripts:',
+    presetsLabel: 'Samples:',
     textareaPlaceholder: 'Enter the text you want the voice to speak aloud...',
-    vocalBurstsLabel: 'Expressive Vocal Bursts & Backchannels (Click to insert):',
+    vocalBurstsLabel: 'Insert expressive tags',
     charsLabel: 'chars',
     estimatedDuration: 'Est. duration',
     synthesizeButton: 'Synthesize & Read Aloud',
-    synthesizingState: 'Synthesizing Audio via Gemini Neural TTS...',
-    outputStationLabel: 'Audio Output Station',
+    synthesizingState: 'Generating speech…',
+    outputStationLabel: 'Playback',
 
     // Studio Right Column
-    voicePersonaLabel: 'Voice Persona & Timbre',
-    previewVoiceBtn: 'Audition Voice',
-    previewPlayingBtn: 'Auditioning...',
+    voicePersonaLabel: 'Voice',
+    previewVoiceBtn: 'Preview',
+    previewPlayingBtn: 'Stop',
     previewClonedSample: 'Play Reference Audio',
     standardNeuralVoices: 'Gemini Standard Neural Voices',
     clonedProfilesAvailable: 'cloned voice profiles available',
-    deliveryStyleLabel: 'Delivery Style & Tone',
+    deliveryStyleLabel: 'Delivery style',
     writeCustomStyle: 'Write Custom Style',
     usingCustomStyle: 'Using Custom Style',
     cancelCustom: 'Cancel custom',
     customStylePlaceholder: 'e.g. Whispering mysteriously like a 1940s noir detective in a rain-soaked alley...',
-    neuralTierLabel: 'Neural Model Tier',
+    neuralTierLabel: 'Model',
     flashLiteName: 'Flash Lite TTS',
     flashLiteDesc: 'Low-latency, high-efficiency daily narration',
     flashName: 'Flash Flagship TTS',

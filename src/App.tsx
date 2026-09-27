@@ -17,6 +17,7 @@ import {
   REFERENCE_SAMPLE_VOICES,
 } from './constants/voices';
 import { I18N } from './constants/i18n';
+import { ENABLE_VOICE_CLONING } from './constants/features';
 import { Navbar } from './components/Navbar';
 import { VoiceSelector } from './components/VoiceSelector';
 import { StyleSelector } from './components/StyleSelector';
@@ -24,19 +25,7 @@ import { AudioPlayerBar } from './components/AudioPlayerBar';
 import { VoiceCloningLab } from './components/VoiceCloningLab';
 import { ClonedVoicesLibrary } from './components/ClonedVoicesLibrary';
 import { HistoryDrawer } from './components/HistoryDrawer';
-import {
-  Volume2,
-  Sparkles,
-  Sliders,
-  Play,
-  RotateCcw,
-  Zap,
-  Info,
-  CheckCircle2,
-  AlertCircle,
-  Dna,
-  Globe,
-} from 'lucide-react';
+import { Volume2, Sparkles, AlertCircle } from 'lucide-react';
 import { processAudioWithDsp, isDspActive } from './utils/audioDsp';
 
 export default function App() {
@@ -174,7 +163,7 @@ export default function App() {
 
   // Text Composer State: default to Chinese or English based on outputLanguage
   const [speechText, setSpeechText] = useState<string>(
-    '欢迎使用 Resona 智能语音工坊。<breath> 您可以输入任意中文或英文段落，自由选择不同的声音角色与演绎风格，并听到流利自然的发音。|yeah| 还可以进入音色克隆实验室，提取专属人声音色！'
+    '欢迎使用 Resona 智能语音工坊。<breath> 您可以输入任意中文或英文段落，自由选择不同的声音角色与演绎风格，并听到流利自然的发音。|yeah| 试试切换不同的音色和演绎风格！'
   );
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -191,7 +180,7 @@ export default function App() {
       }
     } else if (lang === 'en') {
       setSpeechText(
-        'Welcome to Resona Studio. <breath> You can type any sentence, choose distinct voice personas, and hear natural speech synthesized in real time. |yeah| Try switching styles or explore our voice cloning lab!'
+        'Welcome to Resona Studio. <breath> You can type any sentence, choose distinct voice personas, and hear natural speech synthesized in real time. |yeah| Try switching voices and delivery styles!'
       );
       if (!isClonedVoiceSelected && selectedVoiceId === 'Kore') {
         setSelectedVoiceId('Puck');
@@ -205,7 +194,7 @@ export default function App() {
   const [currentAudioUrl, setCurrentAudioUrl] = useState<string | null>(null);
   const [currentAudioMetadata, setCurrentAudioMetadata] = useState<{ title: string; subtitle: string }>({
     title: '欢迎试听语音 (Welcome Speech)',
-    subtitle: 'Kore · 🇨🇳 中文普通话 · 自然交谈',
+    subtitle: 'Kore · 中文普通话 · 自然交谈',
   });
 
   // Generation History
@@ -355,7 +344,7 @@ export default function App() {
         durationSec = data.durationSec || 0;
       }
 
-      const langLabel = outputLanguage === 'zh' ? '🇨🇳 中文普通话' : outputLanguage === 'en' ? '🇺🇸 英语' : '自动语言';
+      const langLabel = outputLanguage === 'zh' ? '中文普通话' : outputLanguage === 'en' ? '英语' : '自动语言';
 
       setCurrentAudioUrl(finalAudioUrl);
       setCurrentAudioMetadata({
@@ -412,6 +401,18 @@ export default function App() {
     return true;
   });
 
+  const cardClass =
+    'rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50 p-5 space-y-4 shadow-sm';
+  const cardTitleClass = 'text-sm font-semibold text-zinc-900 dark:text-zinc-100';
+  const activeVoiceName =
+    isClonedVoiceSelected && currentClonedProfile ? currentClonedProfile.name : selectedVoiceId;
+  const outputLangShort =
+    outputLanguage === 'zh'
+      ? (uiLang === 'zh' ? '中文' : 'Chinese')
+      : outputLanguage === 'en'
+      ? (uiLang === 'zh' ? '英语' : 'English')
+      : t.outputLangAuto;
+
   return (
     <div className={`${theme === 'dark' ? 'dark' : ''} min-h-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 flex flex-col transition-colors selection:bg-indigo-500/30 selection:text-indigo-700 dark:selection:text-indigo-200`}>
       {/* Top Navigation */}
@@ -427,192 +428,128 @@ export default function App() {
       />
 
       {/* Main Content Viewport */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-8">
         {/* Tab 1: Standard TTS Studio */}
         {activeTab === 'studio' && (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             {/* Left Column: Editor & Controls (7 cols) */}
-            <div className="lg:col-span-7 space-y-6">
-              {/* Output Language Selector Bar */}
-              <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/60 p-4 shadow-sm space-y-3">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="flex items-center gap-2">
-                    <Globe className="w-4 h-4 text-indigo-500" />
-                    <span className="text-xs font-bold uppercase tracking-wider text-zinc-700 dark:text-zinc-300">
-                      {t.outputLangLabel}
-                    </span>
-                    <span className="text-xs text-zinc-500 dark:text-zinc-400">
-                      {uiLang === 'zh' ? '(指定发音口音与音调)' : '(Pronunciation & Cadence)'}
-                    </span>
-                  </div>
-
-                  {/* Language Buttons */}
-                  <div className="flex items-center gap-1 p-1 bg-zinc-100 dark:bg-zinc-950 rounded-lg border border-zinc-200 dark:border-zinc-800 text-xs">
-                    <button
-                      type="button"
-                      onClick={() => handleSelectOutputLanguage('zh')}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md font-medium transition-all ${
-                        outputLanguage === 'zh'
-                          ? 'bg-white dark:bg-zinc-800 text-rose-600 dark:text-rose-400 font-bold shadow-sm'
-                          : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
-                      }`}
-                    >
-                      <span>🇨🇳</span>
-                      <span>{uiLang === 'zh' ? '中文普通话' : 'Chinese'}</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => handleSelectOutputLanguage('en')}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md font-medium transition-all ${
-                        outputLanguage === 'en'
-                          ? 'bg-white dark:bg-zinc-800 text-blue-600 dark:text-blue-400 font-bold shadow-sm'
-                          : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
-                      }`}
-                    >
-                      <span>🇺🇸</span>
-                      <span>{uiLang === 'zh' ? '英语' : 'English'}</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => handleSelectOutputLanguage('auto')}
-                      className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md font-medium transition-all ${
-                        outputLanguage === 'auto'
-                          ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 font-bold shadow-sm'
-                          : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-300'
-                      }`}
-                    >
-                      <span>{t.outputLangAuto}</span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Helpful tip about voice suitability for selected language */}
-                <div className="text-xs flex items-center justify-between text-zinc-600 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-950/70 p-2.5 rounded-lg border border-zinc-100 dark:border-zinc-800/60">
-                  <div className="flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0" />
-                    <span>
-                      {outputLanguage === 'zh'
-                        ? '🇨🇳 中文输出模式：已自动加载中文声调韵律，首推 Kore (温润清晰) 或 Zephyr (知性干练)'
-                        : outputLanguage === 'en'
-                        ? '🇺🇸 English Mode: Native English stress rhythm, Puck (Energetic) & Charon (Gravelly) recommended'
-                        : '🌐 自动多语言模式：支持中英混合朗读'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
+            <div className="lg:col-span-7 space-y-5">
               {/* Text Composer Card */}
-              <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50 p-5 space-y-4 shadow-sm">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">
-                      {t.inputScriptLabel}
-                    </span>
-                    {isClonedVoiceSelected && currentClonedProfile && (
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-cyan-100 dark:bg-cyan-500/20 text-cyan-800 dark:text-cyan-300 font-mono flex items-center gap-1">
-                        <Dna className="w-3 h-3" />
-                        {t.speakingWithCloned} {currentClonedProfile.name}
-                      </span>
-                    )}
-                  </div>
+              <section className={cardClass}>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <h2 className={cardTitleClass}>{t.inputScriptLabel}</h2>
 
-                  {/* Sample Scripts Selector */}
+                  {/* Output Language Segmented Control */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-zinc-500 dark:text-zinc-400">{t.outputLangLabel}</span>
+                    <div className="flex items-center p-0.5 bg-zinc-100 dark:bg-zinc-950 rounded-lg text-xs">
+                      {([
+                        ['zh', uiLang === 'zh' ? '中文' : 'Chinese'],
+                        ['en', uiLang === 'zh' ? '英语' : 'English'],
+                        ['auto', t.outputLangAuto],
+                      ] as [OutputLanguage, string][]).map(([lang, label]) => (
+                        <button
+                          key={lang}
+                          type="button"
+                          onClick={() => handleSelectOutputLanguage(lang)}
+                          className={`px-3 py-1 rounded-md whitespace-nowrap transition-all ${
+                            outputLanguage === lang
+                              ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white font-semibold shadow-sm'
+                              : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200'
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Sample Scripts */}
+                {relevantSampleScripts.length > 0 && (
                   <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="text-[11px] text-zinc-500 hidden sm:inline">{t.presetsLabel}</span>
+                    <span className="text-xs text-zinc-500">{t.presetsLabel}</span>
                     {relevantSampleScripts.map((s) => (
                       <button
                         key={s.id}
                         type="button"
                         onClick={() => handleLoadSampleScript(s)}
-                        className="text-[11px] px-2 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 transition-colors"
-                        title={uiLang === 'zh' ? s.titleZh : s.title}
+                        className="text-xs px-2.5 py-1 rounded-full border border-zinc-200 dark:border-zinc-800 hover:border-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-300 text-zinc-600 dark:text-zinc-300 transition-colors"
                       >
                         {uiLang === 'zh' ? s.titleZh : s.title}
                       </button>
                     ))}
                   </div>
-                </div>
+                )}
 
                 {/* Main Textarea */}
-                <div className="relative">
-                  <textarea
-                    ref={textareaRef}
-                    value={speechText}
-                    onChange={(e) => setSpeechText(e.target.value)}
-                    rows={6}
-                    placeholder={t.textareaPlaceholder}
-                    className="w-full bg-zinc-50 dark:bg-zinc-950/80 border border-zinc-300 dark:border-zinc-700/80 rounded-lg p-4 text-base text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 font-sans leading-relaxed resize-y"
-                  />
-                </div>
+                <textarea
+                  ref={textareaRef}
+                  value={speechText}
+                  onChange={(e) => setSpeechText(e.target.value)}
+                  rows={7}
+                  placeholder={t.textareaPlaceholder}
+                  className="w-full bg-zinc-50 dark:bg-zinc-950/80 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 text-[15px] text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 leading-relaxed resize-y"
+                />
 
                 {/* Expressive Bursts Toolbar */}
-                <div className="pt-1 space-y-2">
-                  <div className="flex items-center justify-between text-xs text-zinc-600 dark:text-zinc-400">
-                    <span className="flex items-center gap-1">
-                      <Sparkles className="w-3 h-3 text-indigo-500" />
-                      <span>{t.vocalBurstsLabel}</span>
-                    </span>
-                    <span className="text-[11px] text-zinc-500 font-mono">
-                      {speechText.length} {t.charsLabel} · ~{Math.max(1, Math.round(speechText.split(/\s+/).length / 2.5))}s
-                    </span>
-                  </div>
-
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="flex items-center gap-1 text-xs text-zinc-500 mr-1">
+                      <Sparkles className="w-3 h-3 text-indigo-500" />
+                      {t.vocalBurstsLabel}
+                    </span>
                     {VOCAL_BURSTS.map((burst) => (
                       <button
                         key={burst.tag}
                         type="button"
                         onClick={() => handleInsertVocalBurst(burst.tag)}
-                        className="px-2.5 py-1 text-xs font-mono font-medium rounded-md bg-zinc-100 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 hover:border-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 transition-all active:scale-95"
+                        className="px-2 py-0.5 text-xs font-mono rounded-md bg-zinc-100 dark:bg-zinc-800/80 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 transition-colors active:scale-95"
                         title={burst.desc}
                       >
                         {burst.tag}
                       </button>
                     ))}
                   </div>
+                  <span className="text-xs text-zinc-500 font-mono">
+                    {speechText.length} {t.charsLabel}
+                  </span>
                 </div>
 
                 {/* Primary Synthesize Button */}
-                <div className="pt-2">
-                  <button
-                    type="button"
-                    onClick={handleGenerateSpeech}
-                    disabled={isGenerating || !speechText.trim()}
-                    className="w-full py-3.5 rounded-lg bg-gradient-to-r from-indigo-600 via-indigo-500 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold text-sm shadow-lg shadow-indigo-500/25 active:scale-[0.99] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-                  >
-                    {isGenerating ? (
-                      <>
-                        <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        <span>{t.synthesizingState}</span>
-                      </>
-                    ) : (
-                      <>
-                        <Volume2 className="w-4 h-4 fill-current" />
-                        <span>
-                          {uiLang === 'zh'
-                            ? `朗读并输出语音 (${isClonedVoiceSelected && currentClonedProfile ? currentClonedProfile.name : selectedVoiceId} · ${outputLanguage === 'zh' ? '🇨🇳 中文' : outputLanguage === 'en' ? '🇺🇸 英语' : '多语言'})`
-                            : `Synthesize Speech (${isClonedVoiceSelected && currentClonedProfile ? currentClonedProfile.name : selectedVoiceId} · ${outputLanguage === 'zh' ? 'Chinese' : 'English'})`}
-                        </span>
-                      </>
-                    )}
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={handleGenerateSpeech}
+                  disabled={isGenerating || !speechText.trim()}
+                  className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-[15px] shadow-lg shadow-indigo-600/20 active:scale-[0.99] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isGenerating ? (
+                    <>
+                      <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <span>{t.synthesizingState}</span>
+                    </>
+                  ) : (
+                    <>
+                      <Volume2 className="w-4 h-4" />
+                      <span>{uiLang === 'zh' ? '生成语音' : 'Generate speech'}</span>
+                      <span className="text-indigo-200 font-normal text-sm">
+                        · {activeVoiceName} · {outputLangShort}
+                      </span>
+                    </>
+                  )}
+                </button>
 
                 {generationError && (
-                  <div className="p-3 rounded-lg bg-rose-50 dark:bg-rose-950/30 border border-rose-300 dark:border-rose-500/40 text-xs text-rose-700 dark:text-rose-300 flex items-center gap-2">
-                    <AlertCircle className="w-4 h-4 shrink-0" />
+                  <div className="p-3 rounded-lg bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-500/40 text-sm text-rose-700 dark:text-rose-300 flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                     <span>{generationError}</span>
                   </div>
                 )}
-              </div>
+              </section>
 
               {/* Master Output Audio Player */}
               <div className="space-y-2">
-                <span className="text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">
-                  {t.outputStationLabel}
-                </span>
+                <h2 className={`${cardTitleClass} px-1`}>{t.outputStationLabel}</h2>
                 <AudioPlayerBar
                   audioUrl={currentAudioUrl}
                   title={currentAudioMetadata.title}
@@ -625,23 +562,23 @@ export default function App() {
             </div>
 
             {/* Right Column: Voice Personas, Styles & Engine Settings (5 cols) */}
-            <div className="lg:col-span-5 space-y-6">
+            <div className="lg:col-span-5 space-y-5">
               {/* Voice Selection Box */}
-              <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50 p-5 shadow-sm">
+              <section className={cardClass}>
                 <VoiceSelector
                   selectedVoiceId={selectedVoiceId}
                   isClonedVoiceSelected={isClonedVoiceSelected}
-                  clonedVoices={clonedVoices}
+                  clonedVoices={ENABLE_VOICE_CLONING ? clonedVoices : []}
                   onSelectPrebuiltVoice={handleSelectPrebuiltVoice}
                   onSelectClonedVoice={handleSelectClonedVoice}
                   uiLang={uiLang}
                   outputLanguage={outputLanguage}
                 />
-              </div>
+              </section>
 
               {/* Delivery Style & Tone Selector */}
               {!isClonedVoiceSelected && (
-                <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50 p-5 shadow-sm">
+                <section className={cardClass}>
                   <StyleSelector
                     selectedStyleId={selectedStylePreset.id}
                     customStylePrompt={customStylePrompt}
@@ -654,26 +591,21 @@ export default function App() {
                     onToggleCustom={() => setIsCustomStyleActive(!isCustomStyleActive)}
                     uiLang={uiLang}
                   />
-                </div>
+                </section>
               )}
 
               {/* Synthesis Engine Settings */}
-              <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/40 p-4 space-y-3 shadow-sm">
-                <div className="flex items-center justify-between text-xs font-semibold text-zinc-700 dark:text-zinc-300">
-                  <span className="flex items-center gap-1.5">
-                    <Sliders className="w-3.5 h-3.5 text-zinc-500" />
-                    <span>{t.neuralTierLabel}</span>
-                  </span>
-                  <span className="text-[10px] text-zinc-500 font-mono">
-                    24000 Hz Lossless WAV
-                  </span>
+              <section className={cardClass}>
+                <div className="flex items-center justify-between">
+                  <h2 className={cardTitleClass}>{t.neuralTierLabel}</h2>
+                  <span className="text-[11px] text-zinc-500 font-mono">24 kHz WAV</span>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <button
                     type="button"
                     onClick={() => setTtsModel('gemini-3.8-flash-lite-tts')}
-                    className={`p-2.5 rounded-lg border text-left transition-all ${
+                    className={`p-3 rounded-xl border text-left transition-all ${
                       ttsModel === 'gemini-3.8-flash-lite-tts'
                         ? 'bg-indigo-50/80 dark:bg-indigo-950/40 border-indigo-500 text-zinc-900 dark:text-zinc-100 shadow-sm'
                         : 'bg-zinc-50 dark:bg-zinc-950/60 border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
@@ -686,7 +618,7 @@ export default function App() {
                   <button
                     type="button"
                     onClick={() => setTtsModel('gemini-3.8-flash-tts')}
-                    className={`p-2.5 rounded-lg border text-left transition-all ${
+                    className={`p-3 rounded-xl border text-left transition-all ${
                       ttsModel === 'gemini-3.8-flash-tts'
                         ? 'bg-indigo-50/80 dark:bg-indigo-950/40 border-indigo-500 text-zinc-900 dark:text-zinc-100 shadow-sm'
                         : 'bg-zinc-50 dark:bg-zinc-950/60 border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
@@ -696,13 +628,13 @@ export default function App() {
                     <div className="text-[11px] text-zinc-500 mt-0.5">{t.flashDesc}</div>
                   </button>
                 </div>
-              </div>
+              </section>
             </div>
           </div>
         )}
 
         {/* Tab 2: Voice Cloning Lab */}
-        {activeTab === 'cloning' && (
+        {ENABLE_VOICE_CLONING && activeTab === 'cloning' && (
           <VoiceCloningLab
             clonedVoices={clonedVoices}
             onSaveClonedVoice={handleSaveClonedVoice}
@@ -712,7 +644,7 @@ export default function App() {
         )}
 
         {/* Tab 3: Cloned Voice Library */}
-        {activeTab === 'library' && (
+        {ENABLE_VOICE_CLONING && activeTab === 'library' && (
           <ClonedVoicesLibrary
             clonedVoices={clonedVoices}
             onSelectVoice={handleUseClonedVoiceInStudio}
@@ -732,7 +664,7 @@ export default function App() {
                 setCurrentAudioUrl(item.audioUrl);
                 setCurrentAudioMetadata({
                   title: `${item.voiceName} · ${item.stylePrompt}`,
-                  subtitle: `${item.outputLanguage === 'zh' ? '🇨🇳 中文' : item.outputLanguage === 'en' ? '🇺🇸 英语' : 'Auto'} · ${new Date(item.createdAt).toLocaleTimeString()}`,
+                  subtitle: `${item.outputLanguage === 'zh' ? '中文' : item.outputLanguage === 'en' ? '英语' : 'Auto'} · ${new Date(item.createdAt).toLocaleTimeString()}`,
                 });
                 setActiveTab('studio');
               }}
@@ -749,7 +681,7 @@ export default function App() {
 
       {/* Footer */}
       <footer className="border-t border-zinc-200 dark:border-zinc-800/80 bg-white dark:bg-zinc-950 py-6 text-center text-xs text-zinc-500 transition-colors">
-        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <span className="font-semibold text-zinc-700 dark:text-zinc-400">Resona Audio Studio</span>
             <span>·</span>
