@@ -6,6 +6,38 @@ import { parseApiResponse } from '../utils/api';
 import { claimPlayback } from '../utils/playback';
 import { Wand2, Play, Pause, Loader2, CheckCircle2, Plus } from 'lucide-react';
 
+interface PreviewButtonProps {
+  isPlaying: boolean;
+  isLoading?: boolean;
+  label: string;
+  accent: 'indigo' | 'violet';
+  onClick: (e: React.MouseEvent) => void;
+}
+
+const PreviewButton: React.FC<PreviewButtonProps> = ({ isPlaying, isLoading, label, accent, onClick }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    aria-label={label}
+    title={label}
+    className={`shrink-0 w-7 h-7 rounded-full flex items-center justify-center transition-colors ${
+      isPlaying
+        ? accent === 'violet' ? 'bg-violet-600 text-white' : 'bg-indigo-600 text-white'
+        : accent === 'violet'
+        ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 hover:bg-violet-100 dark:hover:bg-violet-500/20 hover:text-violet-700 dark:hover:text-violet-300'
+        : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 hover:text-indigo-700 dark:hover:text-indigo-300'
+    }`}
+  >
+    {isLoading ? (
+      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+    ) : isPlaying ? (
+      <Pause className="w-3.5 h-3.5 fill-current" />
+    ) : (
+      <Play className="w-3.5 h-3.5 fill-current ml-0.5" />
+    )}
+  </button>
+);
+
 interface VoiceSelectorProps {
   selectedVoiceId: string;
   isCustomVoiceSelected: boolean;
@@ -195,28 +227,20 @@ export const VoiceSelector: React.FC<VoiceSelectorProps> = ({
                       : 'bg-white dark:bg-zinc-900/60 border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700'
                   }`}
                 >
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 min-w-0">
-                      {isSelected ? (
-                        <CheckCircle2 className="w-4 h-4 text-violet-600 dark:text-violet-400 shrink-0" />
-                      ) : (
-                        <span className="w-4 h-4 rounded-full border border-zinc-300 dark:border-zinc-600 shrink-0" />
-                      )}
-                      <span className="font-semibold text-sm text-zinc-900 dark:text-zinc-100 truncate">{voice.name}</span>
-                    </div>
+                  <div className="flex items-center gap-2">
+                    {isSelected ? (
+                      <CheckCircle2 className="w-4 h-4 text-violet-600 dark:text-violet-400 shrink-0" />
+                    ) : (
+                      <span className="w-4 h-4 rounded-full border border-zinc-300 dark:border-zinc-600 shrink-0" />
+                    )}
+                    <span className="flex-1 min-w-0 font-semibold text-sm text-zinc-900 dark:text-zinc-100 truncate">{voice.name}</span>
                     {voice.previewAudioUrl && (
-                      <button
-                        type="button"
+                      <PreviewButton
+                        accent="violet"
+                        isPlaying={isPlayingThis}
+                        label={`${isPlayingThis ? t.previewPlayingBtn : t.previewVoiceBtn} ${voice.name}`}
                         onClick={(e) => handleToggleDesignedPreview(e, voice)}
-                        className={`shrink-0 flex items-center gap-1 h-7 px-2.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
-                          isPlayingThis
-                            ? 'bg-violet-600 text-white'
-                            : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 hover:bg-violet-100 dark:hover:bg-violet-500/20'
-                        }`}
-                      >
-                        {isPlayingThis ? <Pause className="w-3 h-3 fill-current" /> : <Play className="w-3 h-3 fill-current" />}
-                        <span>{isPlayingThis ? t.previewPlayingBtn : t.previewVoiceBtn}</span>
-                      </button>
+                      />
                     )}
                   </div>
                   <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed line-clamp-2">{voice.prompt}</p>
@@ -232,7 +256,11 @@ export const VoiceSelector: React.FC<VoiceSelectorProps> = ({
         {outputLanguage !== 'auto' && (
           <p className="pt-2 text-xs text-zinc-500 dark:text-zinc-400">
             {outputLanguage === 'zh'
-              ? '中文朗读推荐 Kore（温润）或 Zephyr（知性）'
+              ? uiLang === 'zh'
+                ? '中文朗读推荐 Kore（温润）或 Zephyr（知性）'
+                : 'For Chinese, Kore (warm) or Zephyr (articulate) work best'
+              : uiLang === 'zh'
+              ? '英文朗读可以试试 Puck（活力）、Fenrir（史诗）或 Charon（沧桑）'
               : 'For English, try Puck (energetic), Fenrir (epic) or Charon (gritty)'}
           </p>
         )}
@@ -267,49 +295,40 @@ export const VoiceSelector: React.FC<VoiceSelectorProps> = ({
                     : 'bg-white dark:bg-zinc-900/60 border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700'
                 }`}
               >
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 min-w-0">
-                    {isSelected ? (
-                      <CheckCircle2 className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
-                    ) : (
-                      <span className="w-4 h-4 rounded-full border border-zinc-300 dark:border-zinc-600 shrink-0" />
-                    )}
-                    <span className="font-semibold text-sm text-zinc-900 dark:text-zinc-100">{voice.name}</span>
-                    <span className="text-xs text-zinc-500 whitespace-nowrap">{genderLabel}</span>
-                  </div>
+                <div className="flex items-center gap-2">
+                  {isSelected ? (
+                    <CheckCircle2 className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
+                  ) : (
+                    <span className="w-4 h-4 rounded-full border border-zinc-300 dark:border-zinc-600 shrink-0" />
+                  )}
+                  <span className="flex-1 min-w-0 font-semibold text-sm text-zinc-900 dark:text-zinc-100 truncate">{voice.name}</span>
 
-                  <button
-                    type="button"
-                    onClick={(e) => handleTogglePreview(e, voice.id)}
-                    className={`shrink-0 flex items-center gap-1 h-7 px-2.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
+                  <PreviewButton
+                    accent="indigo"
+                    isPlaying={isPlayingThis}
+                    isLoading={isLoadingThis}
+                    label={
                       isPlayingThis
-                        ? 'bg-indigo-600 text-white'
-                        : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 hover:text-indigo-700 dark:hover:text-indigo-300'
-                    }`}
-                    title={
-                      uiLang === 'zh'
+                        ? t.previewPlayingBtn
+                        : uiLang === 'zh'
                         ? `试听 ${voice.name} ${previewLang === 'en' ? '英文' : '中文'}样句`
                         : `Preview ${voice.name} (${previewLang === 'en' ? 'English' : 'Chinese'})`
                     }
-                  >
-                    {isLoadingThis ? (
-                      <Loader2 className="w-3 h-3 animate-spin" />
-                    ) : isPlayingThis ? (
-                      <Pause className="w-3 h-3 fill-current" />
-                    ) : (
-                      <Play className="w-3 h-3 fill-current" />
-                    )}
-                    <span>{isPlayingThis ? t.previewPlayingBtn : t.previewVoiceBtn}</span>
-                  </button>
+                    onClick={(e) => handleTogglePreview(e, voice.id)}
+                  />
                 </div>
+
 
                 <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed line-clamp-2">
                   {uiLang === 'zh' ? voice.timbreDescriptionZh : voice.timbreDescription}
                 </p>
 
                 <div className="flex flex-wrap gap-1">
+                  <span className="text-[11px] text-zinc-600 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800/80 px-1.5 py-0.5 rounded whitespace-nowrap">
+                    {genderLabel}
+                  </span>
                   <span
-                    className={`text-[11px] px-1.5 py-0.5 rounded ${
+                    className={`text-[11px] px-1.5 py-0.5 rounded whitespace-nowrap ${
                       isBilingual
                         ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300'
                         : 'bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300'
@@ -317,10 +336,10 @@ export const VoiceSelector: React.FC<VoiceSelectorProps> = ({
                   >
                     {isBilingual ? (uiLang === 'zh' ? '中英双语' : 'Bilingual') : (uiLang === 'zh' ? '英语优先' : 'English first')}
                   </span>
-                  {(uiLang === 'zh' ? voice.toneZh : voice.tone).slice(0, 2).map((tone) => (
+                  {(uiLang === 'zh' ? voice.toneZh : voice.tone).slice(0, 1).map((tone) => (
                     <span
                       key={tone}
-                      className="text-[11px] text-zinc-600 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800/80 px-1.5 py-0.5 rounded"
+                      className="text-[11px] text-zinc-600 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800/80 px-1.5 py-0.5 rounded whitespace-nowrap"
                     >
                       {tone}
                     </span>

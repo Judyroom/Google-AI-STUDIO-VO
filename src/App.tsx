@@ -312,7 +312,7 @@ export default function App() {
       const finalAudioUrl: string = data.audioUrl;
       const durationSec: number = data.durationSec || 0;
 
-      const langLabel = outputLanguage === 'zh' ? '中文普通话' : outputLanguage === 'en' ? '英语' : '自动语言';
+      const langLabel = outputLangShort;
 
       setCurrentAudioUrl(finalAudioUrl);
       setCurrentAudioMetadata({
@@ -379,12 +379,13 @@ export default function App() {
     'rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50 p-5 space-y-4 shadow-sm';
   const cardTitleClass = 'text-sm font-semibold text-zinc-900 dark:text-zinc-100';
   const activeVoiceName = selectedCustomVoice ? selectedCustomVoice.name : selectedVoiceId;
-  const outputLangShort =
-    outputLanguage === 'zh'
+  const langName = (lang?: OutputLanguage) =>
+    lang === 'zh'
       ? (uiLang === 'zh' ? '中文' : 'Chinese')
-      : outputLanguage === 'en'
+      : lang === 'en'
       ? (uiLang === 'zh' ? '英语' : 'English')
       : t.outputLangAuto;
+  const outputLangShort = langName(outputLanguage);
 
   return (
     <div className={`${theme === 'dark' ? 'dark' : ''} min-h-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 flex flex-col transition-colors selection:bg-indigo-500/30 selection:text-indigo-700 dark:selection:text-indigo-200`}>
@@ -629,7 +630,7 @@ export default function App() {
                 setPlayRequestId((n) => n + 1);
                 setCurrentAudioMetadata({
                   title: `${item.voiceName} · ${item.stylePrompt}`,
-                  subtitle: `${item.outputLanguage === 'zh' ? '中文' : item.outputLanguage === 'en' ? '英语' : 'Auto'} · ${new Date(item.createdAt).toLocaleTimeString()}`,
+                  subtitle: `${langName(item.outputLanguage)} · ${new Date(item.createdAt).toLocaleTimeString()}`,
                 });
                 setActiveTab('studio');
               }}

@@ -52,7 +52,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
 
         {/* Navigation Tabs */}
-        <nav className="order-last sm:order-none w-full sm:w-auto flex items-center gap-1 p-1 bg-zinc-100 dark:bg-zinc-900 rounded-xl text-sm">
+        <nav className="order-last sm:order-none w-full sm:w-auto flex items-center gap-0.5 sm:gap-1 p-1 bg-zinc-100 dark:bg-zinc-900 rounded-xl text-sm">
           {tabs.map((tab) => {
             const isActive = activeTab === tab.id;
             return (
@@ -60,7 +60,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 key={tab.id}
                 type="button"
                 onClick={() => onTabChange(tab.id)}
-                className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-lg whitespace-nowrap transition-all ${
+                className={`flex-1 sm:flex-none min-w-0 flex items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-3.5 py-1.5 rounded-lg whitespace-nowrap transition-all ${
                   isActive
                     ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white font-semibold shadow-sm'
                     : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'

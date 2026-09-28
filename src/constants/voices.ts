@@ -190,7 +190,7 @@ export const SAMPLE_SCRIPTS: SampleScript[] = [
   // Chinese Sample Scripts
   {
     id: 'zh-story',
-    title: '林海夜行 (中文故事)',
+    title: 'Night in the Pine Forest (Chinese story)',
     titleZh: '林海夜行 (中文故事)',
     category: '故事文学',
     categoryZh: '故事文学',
@@ -201,7 +201,7 @@ export const SAMPLE_SCRIPTS: SampleScript[] = [
   },
   {
     id: 'zh-tech',
-    title: '声学智能发布 (中文科技)',
+    title: 'Acoustic AI Launch (Chinese tech)',
     titleZh: '声学智能发布 (中文科技)',
     category: '前沿科技',
     categoryZh: '前沿科技',
@@ -212,7 +212,7 @@ export const SAMPLE_SCRIPTS: SampleScript[] = [
   },
   {
     id: 'zh-meditation',
-    title: '呼吸与正念 (中文冥想)',
+    title: 'Breath & Mindfulness (Chinese meditation)',
     titleZh: '呼吸与正念 (中文冥想)',
     category: '健康疗愈',
     categoryZh: '健康疗愈',
@@ -223,7 +223,7 @@ export const SAMPLE_SCRIPTS: SampleScript[] = [
   },
   {
     id: 'zh-cinema',
-    title: '星际边缘 (中文史诗)',
+    title: 'Edge of the Stars (Chinese epic)',
     titleZh: '星际边缘 (中文史诗)',
     category: '史诗电影',
     categoryZh: '史诗电影',

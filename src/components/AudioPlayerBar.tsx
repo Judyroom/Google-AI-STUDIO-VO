@@ -140,7 +140,7 @@ export const AudioPlayerBar: React.FC<AudioPlayerBarProps> = ({
         <p className="text-xs text-zinc-400 dark:text-zinc-600 mt-1">
           {uiLang === 'zh'
             ? '在上方输入文本并点击生成，即可在此听到自然流利的真实语音'
-            : 'Type your text above and click synthesize to listen to the generated speech'}
+            : 'Type your text above and click Generate speech to hear it here'}
         </p>
       </div>
     );
