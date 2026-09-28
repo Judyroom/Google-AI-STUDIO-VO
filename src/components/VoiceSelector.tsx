@@ -2,6 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { PREBUILT_VOICES } from '../constants/voices';
 import { PrebuiltVoiceName, DesignedVoice, UILanguage, OutputLanguage } from '../types';
 import { I18N } from '../constants/i18n';
+import { parseApiResponse } from '../utils/api';
+import { claimPlayback } from '../utils/playback';
 import { Wand2, Play, Pause, Loader2, CheckCircle2, Plus } from 'lucide-react';
 
 interface VoiceSelectorProps {
@@ -27,6 +29,10 @@ export const VoiceSelector: React.FC<VoiceSelectorProps> = ({
 }) => {
   const t = I18N[uiLang];
   const [langFilter, setLangFilter] = useState<'all' | 'zh' | 'en'>('all');
+
+  // Preview language: voice filter first, then speech language, then UI language.
+  const previewLang: 'zh' | 'en' =
+    langFilter !== 'all' ? langFilter : outputLanguage !== 'auto' ? outputLanguage : uiLang;
 
   // Preview audio playback state
   const previewAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -54,7 +60,6 @@ export const VoiceSelector: React.FC<VoiceSelectorProps> = ({
       return;
     }
 
-    const previewLang = outputLanguage === 'en' ? 'en' : 'zh';
     const cacheKey = `${voiceName}_${previewLang}`;
 
     setLoadingVoiceId(voiceName);
@@ -72,11 +77,7 @@ export const VoiceSelector: React.FC<VoiceSelectorProps> = ({
           }),
         });
 
-        const data = await res.json();
-        if (!res.ok || !data.success) {
-          throw new Error(data.error || 'Failed to fetch preview audio');
-        }
-
+        const data = await parseApiResponse<{ audioUrl: string }>(res, uiLang);
         audioUrl = data.audioUrl;
         previewCacheRef.current[cacheKey] = audioUrl;
       }
@@ -87,10 +88,10 @@ export const VoiceSelector: React.FC<VoiceSelectorProps> = ({
 
       const audio = previewAudioRef.current;
       audio.src = audioUrl;
-      audio.onended = () => {
-        setPlayingVoiceId(null);
-      };
+      audio.onended = () => setPlayingVoiceId(null);
+      audio.onpause = () => setPlayingVoiceId(null);
 
+      claimPlayback(audio);
       await audio.play();
       setPlayingVoiceId(voiceName);
     } catch (err) {
@@ -114,6 +115,8 @@ export const VoiceSelector: React.FC<VoiceSelectorProps> = ({
     const audio = previewAudioRef.current;
     audio.src = voice.previewAudioUrl;
     audio.onended = () => setPlayingVoiceId(null);
+    audio.onpause = () => setPlayingVoiceId(null);
+    claimPlayback(audio);
     audio.play().then(() => setPlayingVoiceId(voice.id)).catch(console.error);
   };
 
@@ -283,7 +286,11 @@ export const VoiceSelector: React.FC<VoiceSelectorProps> = ({
                         ? 'bg-indigo-600 text-white'
                         : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 hover:text-indigo-700 dark:hover:text-indigo-300'
                     }`}
-                    title={uiLang === 'zh' ? `试听 ${voice.name} 朗读样句` : `Preview ${voice.name}`}
+                    title={
+                      uiLang === 'zh'
+                        ? `试听 ${voice.name} ${previewLang === 'en' ? '英文' : '中文'}样句`
+                        : `Preview ${voice.name} (${previewLang === 'en' ? 'English' : 'Chinese'})`
+                    }
                   >
                     {isLoadingThis ? (
                       <Loader2 className="w-3 h-3 animate-spin" />

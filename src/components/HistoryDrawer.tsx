@@ -1,7 +1,7 @@
 import React from 'react';
 import { SpeechGenerationRecord, UILanguage } from '../types';
 import { Play, Download, Trash2, RotateCcw, Clock } from 'lucide-react';
-import { formatTime, downloadAudio } from '../utils/audio';
+import { formatTime, downloadAudio, audioFilename } from '../utils/audio';
 import { I18N } from '../constants/i18n';
 
 interface HistoryDrawerProps {
@@ -97,16 +97,22 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
                   </p>
 
                   <div className="text-[11px] text-zinc-500">
-                    Style: <span className="text-zinc-600 dark:text-zinc-400">{item.stylePrompt}</span>
+                    {uiLang === 'zh' ? '风格：' : 'Style: '}<span className="text-zinc-600 dark:text-zinc-400">{item.stylePrompt}</span>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-1.5 shrink-0">
+                  {!item.audioUrl && (
+                    <span className="text-[11px] text-zinc-400 mr-1">
+                      {uiLang === 'zh' ? '音频未保存' : 'Audio not saved'}
+                    </span>
+                  )}
                   <button
                     type="button"
                     onClick={() => onPlayItem(item)}
-                    className="p-2 rounded-md bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 transition-colors"
-                    title="Play Audio"
+                    disabled={!item.audioUrl}
+                    className="p-2 rounded-md bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                    title={uiLang === 'zh' ? '播放' : 'Play audio'}
                   >
                     <Play className="w-3.5 h-3.5 fill-current" />
                   </button>
@@ -122,8 +128,9 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
 
                   <button
                     type="button"
-                    onClick={() => downloadAudio(item.audioUrl, `speech-${item.voiceName.toLowerCase()}-${item.id}.wav`)}
-                    className="p-2 rounded-md bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 transition-colors"
+                    onClick={() => downloadAudio(item.audioUrl, audioFilename(item.voiceName))}
+                    disabled={!item.audioUrl}
+                    className="p-2 rounded-md bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                     title={t.downloadWavBtn}
                   >
                     <Download className="w-3.5 h-3.5" />

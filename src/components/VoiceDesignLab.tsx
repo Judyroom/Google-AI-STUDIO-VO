@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Wand2, Play, Pause, Trash2, Mic, AlertCircle, Loader2, Sparkles } from 'lucide-react';
 import { DesignedVoice, UILanguage } from '../types';
+import { parseApiResponse } from '../utils/api';
+import { claimPlayback } from '../utils/playback';
 
 interface VoiceDesignLabProps {
   designedVoices: DesignedVoice[];
@@ -78,6 +80,8 @@ export const VoiceDesignLab: React.FC<VoiceDesignLabProps> = ({
     }
     audio.src = voice.previewAudioUrl;
     audio.onended = () => setPlayingId(null);
+    audio.onpause = () => setPlayingId(null);
+    claimPlayback(audio);
     audio.play().then(() => setPlayingId(voice.id)).catch(console.error);
   };
 
@@ -99,11 +103,8 @@ export const VoiceDesignLab: React.FC<VoiceDesignLabProps> = ({
           gender: gender === 'auto' ? undefined : gender,
         }),
       });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || 'Failed to design voice.');
-      }
-      const voice: DesignedVoice = data.voice;
+      const data = await parseApiResponse<{ voice: DesignedVoice }>(res, uiLang);
+      const voice = data.voice;
       onVoiceCreated(voice);
       setLatestVoiceId(voice.id);
       setName('');
@@ -111,6 +112,8 @@ export const VoiceDesignLab: React.FC<VoiceDesignLabProps> = ({
         if (!audioRef.current) audioRef.current = new Audio();
         audioRef.current.src = voice.previewAudioUrl;
         audioRef.current.onended = () => setPlayingId(null);
+        audioRef.current.onpause = () => setPlayingId(null);
+        claimPlayback(audioRef.current);
         audioRef.current.play().then(() => setPlayingId(voice.id)).catch(() => {});
       }
     } catch (err: any) {

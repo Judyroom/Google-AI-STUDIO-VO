@@ -13,8 +13,10 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
-app.use(express.json({ limit: '60mb' }));
-app.use(express.urlencoded({ extended: true, limit: '60mb' }));
+app.use(express.json({ limit: '1mb' }));
+
+// Mirrors MAX_TEXT_LENGTH in src/utils/api.ts
+const MAX_TEXT_LENGTH = 3000;
 
 // Server-side initialization of Gemini SDK as required by system guidelines
 const ai = new GoogleGenAI({
@@ -122,10 +124,18 @@ app.post('/api/tts/generate', async (req, res) => {
       res.status(400).json({ error: 'Text content is required' });
       return;
     }
+    if (text.length > MAX_TEXT_LENGTH) {
+      res.status(400).json({ error: `Text is limited to ${MAX_TEXT_LENGTH} characters.` });
+      return;
+    }
+    if (customVoiceId !== undefined && !(typeof customVoiceId === 'string' && CUSTOM_VOICE_ID.test(customVoiceId))) {
+      res.status(400).json({ error: 'Invalid custom voice id.' });
+      return;
+    }
 
     const validVoiceNames = ['Puck', 'Charon', 'Kore', 'Fenrir', 'Zephyr'];
     const chosenVoice = validVoiceNames.includes(voiceName) ? voiceName : 'Kore';
-    const useCustomVoice = typeof customVoiceId === 'string' && CUSTOM_VOICE_ID.test(customVoiceId);
+    const useCustomVoice = typeof customVoiceId === 'string';
     const voiceConfig = useCustomVoice
       ? { voice: customVoiceId }
       : { prebuiltVoiceConfig: { voiceName: chosenVoice } };
@@ -331,8 +341,8 @@ app.post('/api/tts/preview', async (req, res) => {
     });
   } catch (error: any) {
     console.error('Error in /api/tts/preview:', error);
-    res.status(500).json({
-      error: error?.message || 'Failed to generate voice preview.',
+    res.status(isQuotaError(error) ? 429 : 500).json({
+      error: googleErrorMessage(error) || 'Failed to generate voice preview.',
     });
   }
 });

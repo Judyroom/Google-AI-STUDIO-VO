@@ -7,13 +7,11 @@ import {
   Download,
   Volume2,
   VolumeX,
-  Copy,
-  Check,
   Sparkles,
-  Globe,
 } from 'lucide-react';
-import { formatTime, downloadAudio } from '../utils/audio';
+import { formatTime, downloadAudio, audioFilename } from '../utils/audio';
 import { AudioWaveformVisualizer } from './AudioWaveformVisualizer';
+import { claimPlayback } from '../utils/playback';
 import { OutputLanguage, UILanguage } from '../types';
 
 interface AudioPlayerBarProps {
@@ -24,6 +22,8 @@ interface AudioPlayerBarProps {
   uiLang?: UILanguage;
   onDownload?: () => void;
   autoPlay?: boolean;
+  /** Changing this value restarts and auto-plays the current audio, even if the URL is unchanged. */
+  playRequestId?: number;
 }
 
 export const AudioPlayerBar: React.FC<AudioPlayerBarProps> = ({
@@ -33,6 +33,7 @@ export const AudioPlayerBar: React.FC<AudioPlayerBarProps> = ({
   outputLanguage,
   uiLang = 'zh',
   autoPlay = false,
+  playRequestId = 0,
 }) => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -40,7 +41,6 @@ export const AudioPlayerBar: React.FC<AudioPlayerBarProps> = ({
   const [duration, setDuration] = useState(0);
   const [playbackRate, setPlaybackRate] = useState(1.0);
   const [isMuted, setIsMuted] = useState(false);
-  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (!audioRef.current || !audioUrl) return;
@@ -53,9 +53,13 @@ export const AudioPlayerBar: React.FC<AudioPlayerBarProps> = ({
     const onLoadedMetadata = () => {
       setDuration(audio.duration || 0);
       if (autoPlay) {
-        audio.play().then(() => setIsPlaying(true)).catch(() => setIsPlaying(false));
+        claimPlayback(audio);
+        audio.play().catch(() => setIsPlaying(false));
       }
     };
+
+    const onPlay = () => setIsPlaying(true);
+    const onPause = () => setIsPlaying(false);
 
     const onTimeUpdate = () => {
       setCurrentTime(audio.currentTime);
@@ -69,22 +73,26 @@ export const AudioPlayerBar: React.FC<AudioPlayerBarProps> = ({
     audio.addEventListener('loadedmetadata', onLoadedMetadata);
     audio.addEventListener('timeupdate', onTimeUpdate);
     audio.addEventListener('ended', onEnded);
+    audio.addEventListener('play', onPlay);
+    audio.addEventListener('pause', onPause);
 
     return () => {
       audio.removeEventListener('loadedmetadata', onLoadedMetadata);
       audio.removeEventListener('timeupdate', onTimeUpdate);
       audio.removeEventListener('ended', onEnded);
+      audio.removeEventListener('play', onPlay);
+      audio.removeEventListener('pause', onPause);
       audio.pause();
     };
-  }, [audioUrl]);
+  }, [audioUrl, playRequestId]);
 
   const togglePlay = () => {
     if (!audioRef.current || !audioUrl) return;
     if (isPlaying) {
       audioRef.current.pause();
-      setIsPlaying(false);
     } else {
-      audioRef.current.play().then(() => setIsPlaying(true)).catch(console.error);
+      claimPlayback(audioRef.current);
+      audioRef.current.play().catch(console.error);
     }
   };
 
@@ -119,15 +127,7 @@ export const AudioPlayerBar: React.FC<AudioPlayerBarProps> = ({
 
   const handleDownload = () => {
     if (!audioUrl) return;
-    const filename = `${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Date.now()}.wav`;
-    downloadAudio(audioUrl, filename);
-  };
-
-  const handleCopyLink = () => {
-    if (!audioUrl) return;
-    navigator.clipboard.writeText(audioUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    downloadAudio(audioUrl, audioFilename(title));
   };
 
   if (!audioUrl) {
@@ -197,16 +197,6 @@ export const AudioPlayerBar: React.FC<AudioPlayerBarProps> = ({
             title={isMuted ? 'Unmute' : 'Mute'}
           >
             {isMuted ? <VolumeX className="w-4 h-4 text-rose-500" /> : <Volume2 className="w-4 h-4" />}
-          </button>
-
-          {/* Copy link */}
-          <button
-            type="button"
-            onClick={handleCopyLink}
-            className="p-1.5 rounded-md text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-            title="Copy Audio URL"
-          >
-            {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
           </button>
 
           {/* Download WAV */}
